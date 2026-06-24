@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Empty box slot">
+  <g fill="none" stroke="#d9d4cb" stroke-width="3" stroke-dasharray="6 7">
+    <circle cx="60" cy="60" r="44" fill="#f6f3ee" stroke="#e4ded3"/>
+  </g>
+  <circle cx="60" cy="60" r="15" fill="#fff" stroke="#e4ded3" stroke-width="3"/>
+  <path d="M60 26 a34 34 0 0 1 0 68" fill="none" stroke="#efe9df" stroke-width="2"/>
+</svg>

@@ -1,0 +1,2147 @@
+/**
+ * Rolling Donut Box Builder skin styles.
+ * Standalone (theme-independent) but tuned to match the site's black/gold look.
+ */
+
+:root {
+    --rd-bb-bg: #000;
+    --rd-bb-fg: #fff;
+    --rd-bb-accent: #ffed56;
+    --rd-bb-radius: 1rem;
+    --rd-bb-radius-sm: 0.5rem;
+    --rd-bb-muted: #b9b9b9;
+}
+
+/* The theme's back-to-top control is fixed bottom-right and overlaps the box
+ * builder's floating action bar (covering the +/- stepper). Hide it entirely on
+ * the box builder screen — the action bar already pins to the bottom. */
+body.rd-bb-active #scrollToTopButton {
+    display: none !important;
+}
+
+/* ------------------------------------------------------------ toggle button */
+
+.rd-bb-toggle-wrap {
+    margin: 0 0 1rem;
+}
+
+/* Keep the close control on screen while building: the box (esp. 20-slot midi)
+ * is tall, so pin the toggle to the top of its column instead of letting it
+ * scroll away. White band so box content doesn't peek behind the rounded button. */
+body.rd-bb-active .rd-bb-toggle-wrap {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    margin: 0 0 1rem;
+    padding: 0.5rem 0;
+    background: #fff;
+}
+
+.rd-bb-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    justify-content: center;
+    padding: 0.85rem 1.25rem;
+    border: 2px solid var(--rd-bb-bg);
+    border-radius: var(--rd-bb-radius);
+    background: var(--rd-bb-bg);
+    color: var(--rd-bb-fg);
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.rd-bb-toggle:hover {
+    background: var(--rd-bb-accent);
+    color: var(--rd-bb-bg);
+}
+
+.rd-bb-toggle[aria-pressed="true"] {
+    background: var(--rd-bb-accent);
+    color: var(--rd-bb-bg);
+}
+
+.rd-bb-toggle-icon {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border: 2px dashed currentColor;
+    border-radius: 4px;
+    flex: 0 0 auto;
+}
+
+/* When active the toggle becomes a clear "close" control: dashed box -> X. */
+.rd-bb-toggle[aria-pressed="true"] .rd-bb-toggle-icon {
+    border: none;
+    border-radius: 0;
+}
+
+.rd-bb-toggle[aria-pressed="true"] .rd-bb-toggle-icon::before,
+.rd-bb-toggle[aria-pressed="true"] .rd-bb-toggle-icon::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 2px;
+    background: currentColor;
+}
+
+.rd-bb-toggle[aria-pressed="true"] .rd-bb-toggle-icon::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.rd-bb-toggle[aria-pressed="true"] .rd-bb-toggle-icon::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+/* Collapse the page hero while building to keep the page compact (and reserve
+ * the space for future in-builder filtering controls). */
+body.rd-bb-active .rd-woo-header,
+body.rd-bb-active #info-open,
+body.rd-bb-active #allergen-info-open,
+body.rd-bb-active .rd-related-product,
+body.rd-bb-active .rd-header,
+body.rd-bb-active footer.footer,
+body.rd-bb-active .product-summary-header .entry-titles,
+body.rd-bb-active .product-summary-header .rd-summary-price,
+body.rd-bb-active .rd-mobile-gallery-head {
+    display: none;
+}
+
+/* Builder title (top-left) replaces the hidden hero heading while building. */
+.rd-bb-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.15;
+    padding-top: 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.rd-bb-title-suffix {
+    font-weight: 400;
+    color: var(--rd-bb-muted);
+}
+
+/* Live box total, shown beside the builder title. */
+.rd-bb-title-price {
+    margin-left: 0.6rem;
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--rd-bb-bg);
+}
+
+@media (min-width: 1024px) {
+    .rd-bb-title {
+        font-size: 1.85rem;
+    }
+}
+
+/* Mobile-only product name + price, shown under the "Close Box Builder Mode"
+ * button. On desktop the picker's .rd-bb-title carries this, but the picker is a
+ * bottom sheet on mobile, so the name/price would otherwise be hidden. */
+.rd-bb-mobile-head {
+    display: none;
+}
+
+/* Transition mask: covers the viewport while the page reflows between the normal
+ * product layout and the builder layout, hiding the "flash of two layouts". JS
+ * shows it instantly (no fade-in) and removes .is-visible to fade it out. */
+.rd-bb-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.rd-bb-overlay.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.rd-bb-overlay img {
+    width: 132px;
+    height: 132px;
+    max-width: 40vw;
+    max-height: 40vw;
+    object-fit: contain;
+}
+
+/* WPC's optional-item list renders editable +/- steppers. We never want those
+ * on screen: the default view is our own static `#rd-bb-summary` (built to look
+ * like a fixed bundle), and the builder view is the box UI below. WPC's inputs
+ * stay in the DOM (visually hidden) so it keeps owning cart + pricing. */
+.woosb-wrap .woosb-products {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* -------------------------------------------------------------- summary view */
+
+.rd-bb-summary {
+    margin: 0 0 1rem;
+}
+
+.rd-bb-summary .woosb-products {
+    margin-top: 0;
+}
+
+/* ----------------------------------------------------------------- the box */
+
+.rd-bb {
+    margin: 0 auto 1.25rem;
+    max-width: 560px;
+    border: 3px solid var(--rd-bb-bg);
+    border-radius: var(--rd-bb-radius);
+    background: var(--rd-bb-bg);
+    overflow: hidden;
+}
+
+/* A configured box is added as a whole, so the raw "quantity" number input on the
+ * product page is meaningless — hide it. Quantity is handled by the basket
+ * stepper that the "Add to Basket" button morphs into once a box is added. */
+.product form.cart .quantity {
+    display: none !important;
+}
+
+/* Basket stepper: shown in place of "Add to Basket" once the box is in the cart.
+ * Mirrors the box's dark styling so the control reads as part of the same panel. */
+.rd-bb-cart-stepper {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.4rem 0.5rem;
+    border: 2px solid var(--rd-bb-bg);
+    border-radius: var(--rd-bb-radius);
+    background: var(--rd-bb-bg);
+    color: var(--rd-bb-fg);
+}
+
+.rd-bb-in-cart .rd-bb-cart-stepper {
+    display: flex;
+}
+
+/* Mobile add button is ours, so a plain hide works. */
+.rd-bb-in-cart .rd-bb-mobilebar-addcart {
+    display: none !important;
+}
+
+/* Keep the bundle plugin's inline validation alert ("Please choose at least one
+ * product…") hidden until the customer actually tries to add/checkout. WPC
+ * slideDowns it (inline display) on every readiness check, so an empty box would
+ * show it from the start — !important beats that inline style. JS removes this
+ * class on the first add/Buy Now attempt to reveal it. */
+.woosb-wrap.rd-bb-suppress-woosb-alert .woosb-alert {
+    display: none !important;
+}
+
+/* The theme forces display:flex !important on the desktop button at high
+ * specificity, so match that selector (plus .rd-bb-in-cart) to beat it and hide
+ * the button once a box is in the basket. */
+.woocommerce div.product form.cart.rd-bb-in-cart .single_add_to_cart_button.button.alt,
+.woocommerce div.product form.cart.rd-bb-in-cart button.single_add_to_cart_button.button.alt {
+    display: none !important;
+}
+
+/* Once a box is in the basket the Buy Now button stays visible but becomes a
+ * "Checkout" button (see rd-bb-checkout-mode + JS), so there's always a path to
+ * checkout even if the side-cart slide-out is dismissed. */
+
+.rd-bb-cart-busy .rd-bb-cart-stepper {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.rd-bb-cart-qtywrap {
+    flex: 1 1 auto;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.rd-bb-cart-qty {
+    font-size: 1.25rem;
+}
+
+.rd-bb-cart-inbasket {
+    font-weight: 500;
+    opacity: 0.85;
+}
+
+.rd-bb-cart-step {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--rd-bb-fg);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--rd-bb-fg);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.rd-bb-cart-step--plus {
+    background: var(--rd-bb-accent);
+    border-color: #000;
+    color: #000;
+}
+
+.rd-bb-cart-step:hover {
+    transform: scale(1.08);
+}
+
+.rd-bb-cart-step--minus:hover {
+    background: var(--rd-bb-fg);
+    color: var(--rd-bb-bg);
+}
+
+/* "Your Box" label across the top of the box so the right side is unmistakably
+ * the customer's actual box (vs. the flavour options on the left). */
+.rd-bb-box-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    /* Trim the top so the box doesn't carry a dead gap above "My Box"; keep a
+     * little more bottom padding to separate the heading from the donut slots. */
+    padding: 0.2rem 1rem 0.55rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--rd-bb-fg);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.rd-bb-box-heading-icon {
+    display: inline-flex;
+    color: var(--rd-bb-accent);
+}
+
+.rd-bb-box-heading-icon svg {
+    display: block;
+}
+
+/* Count sits right beside "My Box" (no "Box Quantity:" label any more). */
+.rd-bb-qtydisplay {
+    display: inline-flex;
+    align-items: baseline;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.rd-bb-count-current {
+    color: var(--rd-bb-accent);
+    font-weight: 700;
+    padding: 0 0.1rem;
+}
+
+/* Clear box is pushed to the top-right, in line with "My Box". */
+.rd-bb-clear {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #e0524c;
+    color: #fff;
+    border: none;
+    border-radius: var(--rd-bb-radius-sm);
+    padding: 0.35rem 0.7rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.rd-bb-clear svg {
+    width: 16px;
+    height: 16px;
+}
+
+.rd-bb-clear:hover {
+    background: #fff;
+    color: var(--rd-bb-bg);
+}
+
+/* Group the layout toggle + Clear Box together at the top-right of the heading. */
+.rd-bb-box-actions {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rd-bb-box-actions .rd-bb-clear {
+    margin-left: 0;
+}
+
+/* Grid/list layout toggle. */
+.rd-bb-layout-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: var(--rd-bb-radius-sm);
+    background: transparent;
+    color: var(--rd-bb-fg);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.rd-bb-layout-toggle:hover {
+    background: var(--rd-bb-accent);
+    border-color: var(--rd-bb-accent);
+    color: #000;
+}
+
+.rd-bb-layout-toggle-icon {
+    display: inline-flex;
+}
+
+/* Show the icon for the layout you'll switch *to*. */
+.rd-bb-layout-toggle-icon--grid {
+    display: none;
+}
+
+.rd-bb-box--list .rd-bb-layout-toggle-icon--list {
+    display: none;
+}
+
+.rd-bb-box--list .rd-bb-layout-toggle-icon--grid {
+    display: inline-flex;
+}
+
+.rd-bb-slots {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.4rem;
+    padding: 0.6rem;
+}
+
+/* ---------------------------------------------------------------- list view
+ * Simpler alternative to the donut grid: one row per flavour with its name,
+ * quantity and a single "remove from box" button. */
+.rd-bb-box--list .rd-bb-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.6rem;
+}
+
+.rd-bb-list-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: var(--rd-bb-radius-sm);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.rd-bb-list-thumb {
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: 0 0 auto;
+    object-fit: contain;
+    border-radius: 50%;
+    border: 2px solid var(--rd-bb-accent);
+    background: #fff;
+}
+
+.rd-bb-list-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--rd-bb-fg);
+    overflow-wrap: break-word;
+}
+
+.rd-bb-list-qty {
+    flex: 0 0 auto;
+    font-weight: 700;
+    color: var(--rd-bb-accent);
+}
+
+.rd-bb-list-remove {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.rd-bb-list-remove svg {
+    width: 1.4rem;
+    height: 1.4rem;
+    display: block;
+    transition: transform 0.15s ease;
+}
+
+.rd-bb-list-remove:hover svg {
+    transform: scale(1.12);
+}
+
+.rd-bb-list-empty {
+    margin: 0;
+    padding: 1rem 0.6rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.95rem;
+}
+
+/* Empty placeholder row (list view): mirrors the grid's empty slot. */
+.rd-bb-list-row--empty {
+    background: rgba(255, 255, 255, 0.02);
+    border: 2px dashed rgba(255, 255, 255, 0.18);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.rd-bb-list-row--empty:hover {
+    border-color: var(--rd-bb-accent);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.rd-bb-list-row--empty .rd-bb-list-thumb {
+    opacity: 0.55;
+    border-style: dashed;
+}
+
+.rd-bb-list-add-text {
+    font-weight: 600;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* While dragging a flavour, light up the empty rows as valid drop targets. */
+body.rd-bb-dragging .rd-bb-list-row--empty {
+    border-color: var(--rd-bb-accent);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+body.rd-bb-dragging .rd-bb-list-row--empty .rd-bb-list-add-text {
+    color: var(--rd-bb-accent);
+}
+
+.rd-bb-slot {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.rd-bb-slot-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.rd-bb-slot--filled .rd-bb-slot-img {
+    border-radius: 50%;
+    border: 2px solid var(--rd-bb-accent);
+    background: #fff;
+}
+
+.rd-bb-slot--empty {
+    box-sizing: border-box;
+    opacity: 0.55;
+    border: 2px dashed transparent;
+    transition: opacity 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+/* Hovering an empty slot signals you can drop a flavour here. */
+.rd-bb-slot--empty:hover {
+    opacity: 1;
+    border-color: var(--rd-bb-accent);
+    background: rgba(255, 237, 86, 0.14);
+}
+
+/* A "+" appears on the gap on hover (and while dragging) to invite a drop. */
+.rd-bb-slot--empty::after {
+    content: "+";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--rd-bb-accent);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+.rd-bb-slot--empty:hover::after {
+    opacity: 1;
+}
+
+/* While dragging a flavour, make every empty slot pulse as an obvious target. */
+body.rd-bb-dragging .rd-bb-slot--empty {
+    opacity: 1;
+    border-color: var(--rd-bb-accent);
+    background: rgba(255, 237, 86, 0.16);
+    animation: rd-bb-slot-pulse 1.1s ease-in-out infinite;
+}
+
+body.rd-bb-dragging .rd-bb-slot--empty::after {
+    opacity: 1;
+}
+
+/* The single slot the donut is currently over: the place it will land/swap. */
+body.rd-bb-dragging .rd-bb-slot--drop-target {
+    opacity: 1;
+    border-color: var(--rd-bb-accent);
+    background: rgba(255, 237, 86, 0.32);
+    box-shadow: 0 0 0 3px var(--rd-bb-accent);
+    transform: scale(1.04);
+    animation: none;
+    z-index: 2;
+}
+
+body.rd-bb-dragging .rd-bb-slot--drop-target::after {
+    opacity: 1;
+}
+
+/* Floating drag image (pointer-drag fallback): show just the donut, not the
+   whole card/slot chrome. Appended to <body>, so styled globally. */
+.rd-bb-drag-ghost {
+    width: 90px !important;
+    height: 90px !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    opacity: 0.95;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 99999;
+}
+
+.rd-bb-drag-ghost .rd-bb-card-name,
+.rd-bb-drag-ghost .rd-bb-card-controls,
+.rd-bb-drag-ghost .rd-bb-allergen-toggle,
+.rd-bb-drag-ghost .rd-bb-allergen-panel,
+.rd-bb-drag-ghost .rd-bb-slot-remove,
+.rd-bb-drag-ghost .rd-bb-slot-tip {
+    display: none !important;
+}
+
+.rd-bb-drag-ghost .rd-bb-card-thumb,
+.rd-bb-drag-ghost .rd-bb-card-thumb img,
+.rd-bb-drag-ghost .rd-bb-slot-img {
+    width: 90px !important;
+    height: 90px !important;
+    border-radius: 50%;
+    object-fit: cover;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.25));
+}
+
+/* The original element stays put while dragging; just fade it a touch. */
+.rd-bb-placeholder {
+    opacity: 0.4;
+}
+
+.rd-bb-chosen {
+    cursor: grabbing;
+}
+
+@keyframes rd-bb-slot-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 237, 86, 0.5); }
+    50% { box-shadow: 0 0 0 6px rgba(255, 237, 86, 0); }
+}
+
+.rd-bb-slot-remove {
+    position: absolute;
+    top: 6%;
+    right: 6%;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    line-height: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    display: block;
+    z-index: 6;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.rd-bb-slot-remove svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.rd-bb-slot-remove:hover svg circle {
+    fill: #e0524c;
+}
+
+.rd-bb-slot-tip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 4px;
+    background: #fff;
+    color: #000;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 5;
+}
+
+.rd-bb-slot--filled:hover .rd-bb-slot-tip {
+    opacity: 1;
+}
+
+/* ---------------------------------------------------------------- the picker */
+
+/* Picker lives inside the gallery column; fade gallery out when active. */
+.rd-bb-active .woocommerce-product-gallery > *:not(.rd-bb-picker) {
+    display: none !important;
+}
+
+/* The gallery wrapper has a negative top offset for its image overlap; reset it
+ * while building so the builder title isn't clipped above the viewport. */
+.rd-bb-active .woocommerce-product-gallery,
+.rd-bb-active .removebg {
+    top: 0 !important;
+}
+
+/* While building, the product row is normally capped ~1370px and centered. Give
+ * the flavour grid more room, but keep a gutter so the columns never run flush to
+ * the screen edges (that made the box on the right look cut off), and cap very
+ * wide screens so cards don't sprawl into a cramped 8-across grid. */
+body.rd-bb-active .product.type-product {
+    max-width: min(100%, 1800px);
+    margin-inline: auto;
+    padding-inline: clamp(16px, 3vw, 40px);
+    box-sizing: border-box;
+}
+
+.rd-bb-picker {
+    animation: rd-bb-fade-in 0.3s ease;
+}
+
+/* Bottom-sheet chrome (handle/header/close), the "Add or swap flavours" opener
+ * and the scrim are mobile-only. Hidden on desktop, where the picker is a
+ * side-by-side panel. */
+.rd-bb-sheet-head,
+.rd-bb-open-picker,
+.rd-bb-sheet-backdrop {
+    display: none;
+}
+
+/* Gentle "you can drag me" nudge for the bottom-sheet grab bar. */
+@keyframes rd-bb-handle-nudge {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rd-bb-sheet-handle-bar {
+        animation: none !important;
+    }
+}
+
+/* With ~40 flavours the picker is very tall. On desktop, cap it to the
+ * viewport and scroll inside the panel instead of the whole page, and keep it
+ * sticky so the box on the right stays visible while choosing. */
+@media (min-width: 1024px) {
+    /* Slim the right column to a fixed width while building and let the picker
+     * column grow, so the flavour grid fits more cards per row (6+ across). */
+    body.rd-bb-active .product.type-product > .woocommerce-product-gallery {
+        flex: 1 1 auto;
+        width: auto;
+        max-width: none;
+    }
+
+    body.rd-bb-active .product.type-product > .summary.entry-summary {
+        /* Responsive width: narrow desktops get a slimmer box column so the
+         * flavour grid keeps enough room, wide screens cap at 440px. */
+        flex: 0 0 clamp(340px, 32vw, 440px);
+        width: clamp(340px, 32vw, 440px);
+        max-width: clamp(340px, 32vw, 440px);
+        /* The theme shifts this column right with `desktop:left-20` (left: 5rem)
+         * for the normal product layout. In builder mode the box column is
+         * fixed-width and sits flush against the flavour grid, so that 5rem shift
+         * pushes its right edge past the viewport and clips the box (e.g. ~1628px
+         * wide screens). Cancel the offset here. */
+        left: 0;
+        /* Divider between the flavour options (left) and your actual box (right).
+         * The line is the column's left border, so it spans the box column's
+         * natural height. */
+        border-left: 2px solid #000;
+        /* The box column scrolls with the page (no internal scroll / pinning) so
+         * the close button and Add to Basket never float over the box list. The
+         * flavour picker on the left keeps its own sticky scroll. */
+        padding: 1.5rem 0.5rem 1.5rem 2rem;
+    }
+
+    /* Let the close control scroll with the box list instead of pinning to the
+     * top of the column (it used to float over the list on tall 20-slot boxes). */
+    body.rd-bb-active .rd-bb-toggle-wrap {
+        position: static;
+        padding: 0;
+        background: transparent;
+    }
+
+    /* Give the picker side breathing room from the divider. */
+    body.rd-bb-active .product.type-product > .woocommerce-product-gallery {
+        padding-right: 0.5rem;
+    }
+
+    /* Box, close button and add-to-basket all span the column's full width so
+     * they line up as one consistent stack. */
+    body.rd-bb-active .rd-bb {
+        max-width: none;
+    }
+
+    /* The theme caps this button at 368px !important; override it (higher
+     * specificity + !important) so it matches the box/close width. It sits at the
+     * natural bottom of the box list and scrolls with the page (no pinning). */
+    body.rd-bb-active.woocommerce div.product form.cart .single_add_to_cart_button.button.alt,
+    body.rd-bb-active.woocommerce div.product form.cart button.single_add_to_cart_button.button.alt {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Buy Now sits directly below Add Box to Cart and matches its width. */
+    body.rd-bb-active.woocommerce div.product form.cart .rd-buy-now-button,
+    body.rd-bb-active.woocommerce div.product form.cart button.rd-buy-now-button {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .rd-bb-active .rd-bb-picker {
+        position: sticky;
+        top: 24px;
+        max-height: calc(100vh - 48px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-right: 0.4rem;
+    }
+
+    .rd-bb-picker::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .rd-bb-picker::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: 8px;
+    }
+}
+
+@keyframes rd-bb-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* "More flavours below" scroll hint: a translucent, pulsing down arrow pinned to
+ * the bottom of the scrollable picker. Sits above content and ignores clicks. */
+.rd-bb-scroll-hint {
+    position: sticky;
+    bottom: 8px;
+    z-index: 5;
+    display: flex;
+    justify-content: center;
+    height: 0;
+    margin-top: -10px;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.rd-bb-scroll-hint.is-hidden {
+    opacity: 0;
+}
+
+.rd-bb-scroll-hint-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    transform: translateY(-100%);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    animation: rd-bb-scroll-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes rd-bb-scroll-pulse {
+    0%, 100% { transform: translateY(-100%); opacity: 0.55; }
+    50% { transform: translateY(calc(-100% + 5px)); opacity: 1; }
+}
+
+/* Controls row: category chips on the left, live search on the right. */
+.rd-bb-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.85rem;
+}
+
+/* Category filter chips above the picker. */
+.rd-bb-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    flex: 1 1 auto;
+}
+
+.rd-bb-search-wrap {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+}
+
+/* Compact search trigger: hidden on desktop (the full input shows instead),
+ * revealed on small screens where it toggles the search bar open below. */
+.rd-bb-search-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 0;
+    border: 1px solid #000;
+    border-radius: 50%;
+    background: #fff;
+    color: #000;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.rd-bb-search-toggle:hover,
+.rd-bb-search-toggle[aria-expanded="true"] {
+    background: var(--rd-bb-accent);
+}
+
+.rd-bb-search-icon {
+    position: absolute;
+    right: 0.6rem;
+    color: var(--rd-bb-muted);
+    pointer-events: none;
+}
+
+.rd-bb-search {
+    width: 200px;
+    max-width: 100%;
+    padding: 0.4rem 2rem 0.4rem 0.7rem;
+    border: 1px solid #000;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    line-height: 1.2;
+    background: #fff;
+    color: #000;
+}
+
+.rd-bb-search:focus {
+    outline: none;
+    border-color: var(--rd-bb-bg);
+    box-shadow: 0 0 0 2px var(--rd-bb-accent);
+}
+
+/* Sort control pinned to the far right of the "Add Flavours" header row. */
+.rd-bb-sort-wrap {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    align-self: center;
+    gap: 0.35rem;
+    margin-left: auto;
+}
+
+.rd-bb-sort-icon {
+    color: var(--rd-bb-muted);
+    pointer-events: none;
+    flex: 0 0 auto;
+}
+
+.rd-bb-sort-label {
+    font-size: 0.85rem;
+    color: var(--rd-bb-muted);
+}
+
+.rd-bb-sort {
+    padding: 0.4rem 1.8rem 0.4rem 0.7rem;
+    border: 1px solid #000;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    line-height: 1.2;
+    background: #fff;
+    color: #000;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23291f19' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.55rem center;
+    background-size: 14px;
+}
+
+.rd-bb-sort:focus {
+    outline: none;
+    border-color: var(--rd-bb-bg);
+    box-shadow: 0 0 0 2px var(--rd-bb-accent);
+}
+
+/* Help "?" button + instructions popover, to the right of the search. */
+.rd-bb-help {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.rd-bb-help-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.7rem;
+    border: 1px solid #000;
+    border-radius: 999px;
+    background: #fff;
+    color: #000;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.rd-bb-help-toggle:hover,
+.rd-bb-help-toggle[aria-expanded="true"] {
+    background: var(--rd-bb-accent);
+}
+
+.rd-bb-help-toggle svg {
+    flex: 0 0 auto;
+}
+
+.rd-bb-help-panel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    z-index: 40;
+    width: 320px;
+    max-width: 80vw;
+    padding: 0.9rem 1rem 1rem;
+    background: #fff;
+    color: #000;
+    border: 2px solid #000;
+    border-radius: var(--rd-bb-radius-sm);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+/* Little pointer connecting the popover to the button. */
+.rd-bb-help-panel::before {
+    content: "";
+    position: absolute;
+    top: -8px;
+    right: 22px;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-left: 2px solid #000;
+    border-top: 2px solid #000;
+    transform: rotate(45deg);
+}
+
+.rd-bb-help-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.rd-bb-help-panel-title {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.rd-bb-help-close {
+    flex: 0 0 auto;
+    width: 1.6rem;
+    height: 1.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #000;
+    border-radius: 50%;
+}
+
+.rd-bb-help-close:hover {
+    background: #f0f0f0;
+}
+
+.rd-bb-help-list {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+/* Small screens: collapse the controls to icons. Help shows just the "?", and
+ * the search becomes an icon that reveals the full search bar below the filter. */
+@media (max-width: 767px) {
+    .rd-bb-help-label {
+        display: none;
+    }
+
+    .rd-bb-help-toggle {
+        width: 2.2rem;
+        height: 2.2rem;
+        padding: 0;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+    .rd-bb-search-toggle {
+        display: inline-flex;
+    }
+
+    /* Input hidden until toggled; when open it spans a full row beneath the chips. */
+    .rd-bb-search-wrap {
+        display: none;
+        order: 99;
+        flex: 1 1 100%;
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .rd-bb-controls.rd-bb-search-open .rd-bb-search-wrap {
+        display: flex;
+    }
+
+    .rd-bb-controls.rd-bb-search-open .rd-bb-search {
+        width: 100%;
+    }
+}
+
+.rd-bb-help-list li {
+    padding-left: 0.15rem;
+}
+
+.rd-bb-help-panel-foot {
+    margin-top: 0.75rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid #ececec;
+    text-align: right;
+}
+
+.rd-bb-hints-off-btn {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--rd-bb-muted, #6b6b6b);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.rd-bb-hints-off-btn:hover {
+    color: #000;
+}
+
+/* Customer opted out of the instructional tips (Help panel -> "Don't show tips
+   again"). Hide the nudges only; the functional count/progress bar stays. */
+.rd-bb--hints-off .rd-bb-picker-hint,
+.rd-bb--hints-off .rd-bb-scroll-hint,
+.rd-bb--hints-off .rd-bb-full-notice {
+    display: none !important;
+}
+
+.rd-bb-filter:empty {
+    display: none;
+}
+
+.rd-bb-chip {
+    border: 1px solid #000;
+    background: #fff;
+    color: #000;
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.rd-bb-chip:hover {
+    background: var(--rd-bb-accent);
+}
+
+.rd-bb-chip.is-active {
+    background: var(--rd-bb-bg);
+    color: var(--rd-bb-fg);
+}
+
+.rd-bb-empty {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 1.5rem 0;
+    text-align: center;
+    color: var(--rd-bb-muted);
+}
+
+/* Heading + hint share a row; the hint sits beside the heading and wraps under
+ * it only when there isn't room. */
+.rd-bb-picker-headrow {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.2rem 0.75rem;
+    margin-bottom: 0.85rem;
+}
+
+.rd-bb-picker-header {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+/* Hint that the cards on the left are options to drop into the box on the right. */
+.rd-bb-picker-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--rd-bb-muted);
+}
+
+.rd-bb-picker-hint-arrow {
+    font-weight: 700;
+    color: var(--rd-bb-bg);
+    animation: rd-bb-hint-nudge 1.4s ease-in-out infinite;
+}
+
+@keyframes rd-bb-hint-nudge {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(4px); }
+}
+
+.rd-bb-picker-grid {
+    display: grid;
+    /* Auto-fill cards; the min track grows on bigger screens so the grid shows
+     * fewer, larger cards rather than a cramped 8-across wall. The card's −/+
+     * stepper then never gets squeezed off the edge. Phones drop to 2-3 across. */
+    grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+    gap: 0.5rem;
+    /* The grid flex-fills its scroll panel/sheet, so it's usually taller than its
+     * rows. Pin rows to the top and size each card to its own content so they
+     * never stretch to fill the row/grid height (which left big gaps above the
+     * −/+ stepper). align-items:start = cards keep their natural height. */
+    align-content: start;
+    /* Stretch every card to the tallest in its row; with margin-top:auto on the
+     * controls this keeps the steppers bottom-aligned even when names/badges vary. */
+    align-items: stretch;
+    grid-auto-rows: min-content;
+}
+
+@media (min-width: 1024px) {
+    .rd-bb-picker-grid {
+        grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    }
+}
+
+@media (min-width: 1440px) {
+    .rd-bb-picker-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+}
+
+.rd-bb-card {
+    position: relative;
+    border: 1px solid #ece6db;
+    border-radius: var(--rd-bb-radius-sm);
+    padding: 0.5rem;
+    text-align: center;
+    background: #fff;
+    cursor: grab;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.rd-bb-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--rd-bb-bg);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.rd-bb-card:active {
+    cursor: grabbing;
+}
+
+.rd-bb-card-thumb img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: contain;
+    transition: transform 0.15s ease;
+}
+
+.rd-bb-card:hover .rd-bb-card-thumb img {
+    transform: scale(1.05);
+}
+
+.rd-bb-card-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0.3rem 0 0.5rem;
+    line-height: 1.25;
+    /* Reserve two lines so single- and double-line flavour names occupy the same
+     * vertical space and the imagery/steppers below line up card to card. */
+    min-height: 2.5em;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+/* Allergen info toggle (top-right of card) + panel. */
+.rd-bb-allergen-toggle {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    z-index: 5;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    line-height: 0;
+}
+
+.rd-bb-allergen-toggle svg {
+    width: 100%;
+    height: 100%;
+}
+
+.rd-bb-allergen-icon--close {
+    display: none;
+}
+
+.rd-bb-card--allergens .rd-bb-allergen-icon--info {
+    display: none;
+}
+
+.rd-bb-card--allergens .rd-bb-allergen-icon--close {
+    display: inline-block;
+}
+
+.rd-bb-allergen-panel {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.3rem;
+    left: 0.3rem;
+    z-index: 4;
+    background: #fff;
+    border: 1px solid #000;
+    border-radius: var(--rd-bb-radius-sm);
+    padding: 0.5rem 0.45rem;
+    text-align: left;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}
+
+.rd-bb-allergen-title {
+    display: block;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+}
+
+.rd-bb-allergen-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.rd-bb-allergen-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-width: 0;
+    font-size: 0.72rem;
+    line-height: 1.2;
+}
+
+.rd-bb-allergen-item span {
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
+.rd-bb-allergen-item img {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    object-fit: contain;
+}
+
+.rd-bb-card-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+    margin-top: auto;
+}
+
+.rd-bb-step {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid #000;
+    background: #fff;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.rd-bb-step--plus {
+    background: var(--rd-bb-accent);
+    border: 1px solid #000;
+    color: #000;
+}
+
+.rd-bb-step:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.rd-bb-card-qty {
+    min-width: 1.25rem;
+    font-weight: 700;
+}
+
+/* While one action button (Add to Basket / Buy Now) is processing, the others
+ * are greyed out so it's clear only the pressed button's action is running. */
+.rd-bb-busy-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* "Blocked" buttons stay clickable (so a tap explains why via a toast) but read
+ * as inactive: greyed out with a not-allowed cursor, like a disabled control. */
+.rd-bb-step.is-blocked {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.rd-bb-step--plus.is-blocked {
+    background: #fff;
+}
+
+/* Persistent "box full" banner at the top of the picker. */
+.rd-bb-full-notice {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid #000;
+    border-radius: var(--rd-bb-radius-sm);
+    background: var(--rd-bb-accent);
+    color: #000;
+}
+
+.rd-bb-full-notice-count {
+    flex: 0 0 auto;
+    font-weight: 800;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: #000;
+    color: var(--rd-bb-accent);
+}
+
+.rd-bb-full-notice-text {
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+/* SortableJS drag helpers */
+.sortable-ghost {
+    opacity: 0.4;
+}
+
+/* ---------------------------------------------------------------- the toast */
+
+.rd-bb-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 90px;
+    transform: translateX(-50%) translateY(12px);
+    background: #000;
+    color: #fff;
+    padding: 0.6rem 1rem;
+    border-radius: var(--rd-bb-radius-sm);
+    font-size: 0.9rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 9999;
+}
+
+.rd-bb-toast.is-visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ------------------------------------------------------------ mobile layout */
+
+.rd-bb-mobilebar {
+    display: none;
+}
+
+@media (max-width: 1023px) {
+    /* Below the desktop two-column breakpoint, stack the builder into a single
+     * column: full-width flavour picker on top, the box below. This avoids the
+     * theme's cramped 49%/49% split (which left only ~3 tiny picker columns and
+     * collided with the fixed mobile action bar). */
+    body.rd-bb-active .product.type-product {
+        flex-direction: column;
+        padding-inline: clamp(12px, 4vw, 24px);
+    }
+
+    body.rd-bb-active .product.type-product > .woocommerce-product-gallery,
+    body.rd-bb-active .product.type-product > .summary.entry-summary {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        float: none !important;
+    }
+
+    /* Trim the big gap above the close button while building on mobile. */
+    body.rd-bb-active .product.type-product > .summary.entry-summary {
+        padding-top: 0.5rem !important;
+    }
+
+    /* On mobile the wrapper is transparent so the title sits in its own bar ABOVE
+     * the box, instead of reading as the top of the dark box card. */
+    body.rd-bb-active #rd-bb {
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        overflow: visible;
+    }
+
+    /* The box becomes its own dark card now that the wrapper is transparent. */
+    body.rd-bb-active .rd-bb-box {
+        background: var(--rd-bb-bg);
+        border: 3px solid var(--rd-bb-bg);
+        border-radius: var(--rd-bb-radius);
+        overflow: hidden;
+    }
+
+    /* Product name + price as a separate dark bar above the box. */
+    body.rd-bb-active .rd-bb-mobile-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        column-gap: 0.6rem;
+        row-gap: 0.1rem;
+        margin: 0 0 0.6rem;
+        padding: 0.6rem 0.9rem;
+        background: var(--rd-bb-bg);
+        border-radius: var(--rd-bb-radius);
+    }
+
+    /* Pull "My Box" / Clear Box up: trim the dead space at the top of the box on
+     * small screens so the donuts sit higher in view. */
+    body.rd-bb-active .rd-bb-box-heading {
+        padding-top: 0.1rem;
+        padding-bottom: 0.4rem;
+    }
+
+    body.rd-bb-active .rd-bb-slots {
+        padding-top: 0.4rem;
+    }
+
+        .rd-bb-mobile-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            line-height: 1.15;
+            /* Sits on #rd-bb's dark background, so use the light foreground (not the
+             * dark bg token, which rendered black-on-black and made it invisible). */
+            color: var(--rd-bb-fg);
+        }
+
+        .rd-bb-mobile-price {
+            font-weight: 700;
+            white-space: nowrap;
+            color: var(--rd-bb-accent);
+        }
+
+    /* Sticky action bar on mobile while building. */
+    .rd-bb-active .rd-bb-mobilebar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 9998;
+        background: #000;
+        color: #fff;
+        padding: 0.7rem 1rem;
+        padding-bottom: calc(0.7rem + env(safe-area-inset-bottom, 0px));
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+        transform: translateY(0);
+        transition: transform 0.25s ease;
+    }
+
+    /* Slid away once the real inline Add/Buy buttons are on screen. */
+    .rd-bb-active .rd-bb-mobilebar.rd-actionbar-hidden {
+        transform: translateY(120%);
+        pointer-events: none;
+    }
+
+    .rd-bb-mobilebar-count {
+        font-weight: 700;
+    }
+
+    .rd-bb-mobilebar-count .rd-bb-count-current {
+        color: var(--rd-bb-accent);
+    }
+
+    .rd-bb-mobilebar-addcart {
+        flex: 1 1 auto;
+        border: none;
+        border-radius: var(--rd-bb-radius-sm);
+        background: var(--rd-bb-accent);
+        color: #000;
+        font-weight: 700;
+        padding: 0.7rem 0.6rem;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .rd-bb-mobilebar-buynow {
+        flex: 1 1 auto;
+        border: 2px solid var(--rd-bb-accent);
+        border-radius: var(--rd-bb-radius-sm);
+        background: transparent;
+        color: var(--rd-bb-accent);
+        font-weight: 700;
+        padding: 0.7rem 0.6rem;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .rd-bb-mobilebar-addcart:disabled,
+    .rd-bb-mobilebar-buynow:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Compact basket button that re-opens the side-cart slide-out, so there's a
+     * way back to the cart even after the customer dismisses it. Sits at the end
+     * of the bar. (The theme back-to-top control is hidden in builder mode, so it
+     * no longer overlaps this or the +/- stepper — see the global rule below.) */
+    .rd-bb-mobilebar-cart {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.75rem;
+        height: 2.75rem;
+        padding: 0;
+        border: 2px solid var(--rd-bb-accent);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--rd-bb-accent);
+        cursor: pointer;
+    }
+
+    .rd-bb-mobilebar-cart:hover,
+    .rd-bb-mobilebar-cart:focus-visible {
+        background: var(--rd-bb-accent);
+        color: #000;
+    }
+
+    /* The flavour picker is a fixed bottom sheet on mobile, so the gallery column
+     * it lives in has no visible content while building (its image sliders are
+     * hidden). Collapse it to zero height so it doesn't leave an empty gap above
+     * the box. The fixed sheet is positioned to the viewport, not clipped by this
+     * 0-height box, so it's unaffected. Room above the sticky action bar is given
+     * to the summary column instead. */
+    .rd-bb-active .product.type-product > .woocommerce-product-gallery {
+        min-height: 0 !important;
+        padding: 0 !important;
+    }
+
+    .rd-bb-active .product.type-product > .summary.entry-summary {
+        padding-bottom: 80px !important;
+    }
+
+    /* ------------------------------------------------ mobile bottom-sheet picker
+     * On phones/tablets the box stays in view at the top and the flavour grid
+     * lives in a sheet that slides up from the bottom. Tapping an empty slot (or
+     * the "Add or swap flavours" button) opens it; it scrolls internally and
+     * keeps the category chips + search pinned to its top. */
+
+    /* The opener sits under the box: a clear, full-width call to action. */
+    .rd-bb-active .rd-bb-open-picker {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+        margin: 0.75rem 0 0;
+        padding: 0.85rem 1rem;
+        border: 2px dashed var(--rd-bb-bg);
+        border-radius: var(--rd-bb-radius);
+        background: var(--rd-bb-accent);
+        color: #000;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+
+    .rd-bb-open-picker-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.4rem;
+        height: 1.4rem;
+        border-radius: 50%;
+        background: #000;
+        color: var(--rd-bb-accent);
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    /* Hint that empty slots are tappable on mobile. */
+    .rd-bb-active .rd-bb-slot--empty {
+        cursor: pointer;
+    }
+
+    /* Picker becomes a fixed, off-screen sheet; slides in via body class. */
+    .rd-bb-active .rd-bb-picker {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10001;
+        display: flex;
+        flex-direction: column;
+        height: 72vh;
+        max-height: 72vh;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.28);
+        transform: translateY(100%);
+        transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+        will-change: transform;
+        overflow: hidden;
+        overscroll-behavior: contain;
+    }
+
+    body.rd-bb-sheet-open .rd-bb-picker {
+        transform: translateY(0);
+    }
+
+    /* Visual scrim for depth. pointer-events:none is deliberate: the box must
+     * stay draggable behind the sheet (Sortable's drop test uses the element
+     * under the pointer, which a clickable backdrop would steal). */
+    .rd-bb-active .rd-bb-sheet-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        background: rgba(0, 0, 0, 0.28);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.32s ease, visibility 0.32s ease;
+    }
+
+    body.rd-bb-sheet-open .rd-bb-sheet-backdrop {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* Sheet header: grab handle + title + count + close. Fixed at the top. */
+    .rd-bb-active .rd-bb-sheet-head {
+        display: block;
+        flex: 0 0 auto;
+        padding: 0.5rem 1rem 0.25rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    /* Grab handle. Tap closes; drag up/down resizes the sheet. Laid out as a
+     * column (grab bar + text hint) so the drag affordance is obvious; the
+     * generous padding gives a comfortable target and touch-action:none keeps
+     * the browser from scrolling mid-drag. */
+    .rd-bb-sheet-handle {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        width: 100%;
+        margin: 0 auto;
+        padding: 0.5rem 1rem 0.35rem;
+        border: none;
+        background: transparent;
+        cursor: grab;
+        touch-action: none;
+        font: inherit;
+    }
+
+    /* The grab bar: a clear pill that gently nudges up/down a few times when the
+     * sheet opens, signalling it can be dragged. */
+    .rd-bb-sheet-handle-bar {
+        display: block;
+        width: 52px;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.3);
+        animation: rd-bb-handle-nudge 1.5s ease-in-out 3;
+    }
+
+    /* Text hint reinforcing the drag affordance. */
+    .rd-bb-sheet-handle-hint {
+        font-size: 0.7rem;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: 0.01em;
+        color: rgba(0, 0, 0, 0.45);
+    }
+
+    .rd-bb-sheet-handle:active {
+        cursor: grabbing;
+    }
+
+    .rd-bb-sheet-handle:active .rd-bb-sheet-handle-bar {
+        background: rgba(0, 0, 0, 0.5);
+        animation: none;
+    }
+
+    /* No height transition while dragging — JS toggles this class. */
+    .rd-bb-active .rd-bb-picker.rd-bb-sheet-resizing {
+        transition: none !important;
+    }
+
+    .rd-bb-sheet-head-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .rd-bb-sheet-title {
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .rd-bb-sheet-count {
+        font-weight: 700;
+    }
+
+    .rd-bb-sheet-count .rd-bb-count-current {
+        color: var(--rd-bb-accent-strong, #000);
+    }
+
+    .rd-bb-sheet-close {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: #000;
+        color: #fff;
+        font-size: 1.3rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    /* The big "— Customised Box" title and the header row's copy are redundant
+     * inside the sheet; reclaim the space for the grid. The sort control stays,
+     * so the header row collapses to just the sort, aligned right. */
+    .rd-bb-active .rd-bb-picker .rd-bb-title,
+    .rd-bb-active .rd-bb-picker .rd-bb-picker-header,
+    .rd-bb-active .rd-bb-picker .rd-bb-picker-hint {
+        display: none;
+    }
+
+    .rd-bb-active .rd-bb-picker .rd-bb-picker-headrow {
+        margin: 0;
+        padding: 0.5rem 1rem;
+        justify-content: flex-end;
+    }
+
+    /* Filters + search stay pinned below the header while the grid scrolls. */
+    .rd-bb-active .rd-bb-picker .rd-bb-controls {
+        flex: 0 0 auto;
+        padding: 0.5rem 1rem;
+        background: #fff;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .rd-bb-active .rd-bb-picker .rd-bb-picker-grid {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    }
+}
+
+@media (max-width: 480px) {
+    .rd-bb-slots {
+        gap: 0.45rem;
+        padding: 0.6rem;
+    }
+}
+
+/* ------------------------------------------------ add-on option fields (builder)
+ * Team/occasion dropdown, logo upload and the customer note, relocated below the
+ * box. Required ones must read as part of "configure your box".
+ */
+.rd-bb-active #custom-product-addons {
+    max-width: 100%;
+    margin-top: 1rem;
+}
+
+.rd-bb-active #custom-product-addons .product-addon-field {
+    margin-bottom: 1rem;
+}
+
+.rd-bb-active #custom-product-addons > .product-addon-field > label,
+.rd-bb-active #custom-product-addons .custom-dropdown-group-select + label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+.rd-bb-active #custom-product-addons select,
+.rd-bb-active #custom-product-addons input[type="file"],
+.rd-bb-active #custom-product-addons textarea {
+    width: 100%;
+    border: 2px solid #000;
+    border-radius: var(--rd-bb-radius-sm);
+    padding: 0.6rem 0.7rem;
+    font-size: 0.95rem;
+    background: #fff;
+}
+
+.rd-bb-active #custom-product-addons select.rd-bb-addon-invalid,
+.rd-bb-active #custom-product-addons input.rd-bb-addon-invalid,
+.rd-bb-active #custom-product-addons textarea.rd-bb-addon-invalid {
+    border-color: #e0524c;
+    box-shadow: 0 0 0 2px rgba(224, 82, 76, 0.2);
+}
+
+/* ------------------------------------------------------- fill-progress (box)
+ * Sits in the dark box card, under the heading: a thin track that fills as the
+ * box is built, plus a "add N more to complete your box" line. */
+.rd-bb-progress {
+    padding: 0 0.9rem 0.3rem;
+}
+
+.rd-bb-progress-track {
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+}
+
+.rd-bb-progress-fill {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 999px;
+    background: var(--rd-bb-accent);
+    transition: width 0.25s ease;
+}
+
+.rd-bb-progress--complete .rd-bb-progress-fill {
+    background: #5fcf80;
+}
+
+.rd-bb-progress-text {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--rd-bb-fg);
+}
+
+.rd-bb-progress--complete .rd-bb-progress-text {
+    color: #5fcf80;
+}
+
+/* --------------------------------------------------- picker card: in-box state
+ * Cards already in the box get an accent border + a corner tick badge so the
+ * current selection is scannable without checking the box itself. */
+.rd-bb-card--in-box {
+    border-color: var(--rd-bb-bg);
+    box-shadow: inset 0 0 0 2px var(--rd-bb-accent);
+}
+
+.rd-bb-card-badge {
+    position: absolute;
+    top: 0.4rem;
+    left: 0.4rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.1rem 0.4rem 0.1rem 0.3rem;
+    border-radius: 999px;
+    background: var(--rd-bb-bg);
+    color: var(--rd-bb-accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.rd-bb-card-badge-count {
+    color: var(--rd-bb-fg);
+}
+
+/* --------------------------------------------------- picker card: diet badges
+ * Small dietary pills under the flavour name (VG / GF), derived from the
+ * flavour's product categories. Inline so they never overlap other badges. */
+.rd-bb-card-diet {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem;
+    margin: 0 0 0.45rem;
+}
+
+.rd-bb-diet {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    border: 1px solid currentColor;
+}
+
+.rd-bb-diet--vg {
+    color: #2e7d32;
+    background: #eafbe7;
+}
+
+.rd-bb-diet--gf {
+    color: #8a5a00;
+    background: #fff4d6;
+}
+
+.rd-bb-diet--best {
+    color: #b3261e;
+    background: #fdecea;
+}
+
+.rd-bb-diet--trending {
+    color: #6d28d9;
+    background: #f3edfd;
+}
+
+.rd-bb-diet--new {
+    color: #1565c0;
+    background: #e7f1fb;
+}
+
+/* --------------------------------------------------------- toast: undo action
+ * The base toast is pointer-events:none; the action variant must be clickable. */
+.rd-bb-toast--action {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.rd-bb-toast-undo {
+    flex: 0 0 auto;
+    border: none;
+    background: var(--rd-bb-accent);
+    color: #000;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: var(--rd-bb-radius-sm);
+    cursor: pointer;
+}
+
+.rd-bb-toast-undo:hover {
+    filter: brightness(0.95);
+}
+
+/* The shared single-product wrapper carries a `lg:mb-20` (5rem) bottom margin
+ * which leaves a large empty gap under the box builder. Drop it on box products. */
+@media (min-width: 1085px) {
+    body.rd-product-type-box .product.type-product.lg\:mb-20 {
+        margin-bottom: 0;
+    }
+}

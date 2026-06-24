@@ -1,0 +1,243 @@
+/**
+ * In-cart box editor: contents accordion + editable add-ons.
+ * Used on the main cart page and inside the slide-out side cart.
+ */
+
+.rd-bb-cart-acc {
+    margin: 0.5rem 0 0;
+    width: 100%;
+}
+
+.rd-bb-cart-acc-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #000;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.rd-bb-cart-acc-caret {
+    transition: transform 0.18s ease;
+    font-size: 0.8em;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.rd-bb-cart-acc.is-open .rd-bb-cart-acc-caret {
+    transform: rotate(180deg);
+}
+
+.rd-bb-cart-acc-body {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    border: 1px solid #e2e2e2;
+    border-radius: 10px;
+    background: #fafafa;
+}
+
+.rd-bb-cart-section + .rd-bb-cart-section {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #e2e2e2;
+}
+
+.rd-bb-cart-section-title {
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.35rem;
+    color: #555;
+}
+
+.rd-bb-cart-contents {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.rd-bb-cart-contents li {
+    font-size: 0.9rem;
+    line-height: 1.35;
+    color: #000;
+    margin: 0;
+}
+
+.rd-bb-cart-qty {
+    font-weight: 700;
+    margin-right: 0.25rem;
+}
+
+/* Read-only add-on summary */
+.rd-bb-cart-addons-list {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.rd-bb-cart-addons-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0;
+}
+
+.rd-bb-cart-addons-row dt {
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.rd-bb-cart-addons-row dt::after {
+    content: ":";
+}
+
+.rd-bb-cart-addons-row dd {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #222;
+    overflow-wrap: anywhere;
+}
+
+.rd-bb-cart-addons-empty {
+    margin: 0 0 0.4rem;
+    font-size: 0.85rem;
+    color: #777;
+    font-style: italic;
+}
+
+.rd-bb-cart-logo-thumb {
+    max-width: 50px;
+    height: auto;
+    border-radius: 4px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.rd-bb-cart-addons-edit {
+    margin-top: 0.5rem;
+    padding: 0.35rem 0.9rem;
+    background: #fff;
+    border: 2px solid #000;
+    border-radius: 72px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.rd-bb-cart-addons-edit:hover {
+    background: #000;
+    color: #ffed56;
+}
+
+/* Edit form */
+.rd-bb-cart-addons-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-top: 0.25rem;
+}
+
+.rd-bb-cart-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.rd-bb-cart-field-label {
+    font-weight: 700;
+    font-size: 0.82rem;
+}
+
+.rd-bb-cart-field-hint {
+    font-size: 0.74rem;
+    color: #777;
+}
+
+.rd-bb-cart-addons-form select,
+.rd-bb-cart-addons-form textarea,
+.rd-bb-cart-addons-form input[type="file"] {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    font-size: 0.88rem;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid #c9c9c9;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.rd-bb-cart-addons-form textarea {
+    resize: vertical;
+    min-height: 64px;
+}
+
+.rd-bb-cart-form-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.rd-bb-cart-addons-save {
+    padding: 0.45rem 1.2rem;
+    background: #ffed56;
+    border: 2px solid #ffed56;
+    border-radius: 72px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #000;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.rd-bb-cart-addons-save:hover {
+    background: #000;
+    color: #ffed56;
+}
+
+.rd-bb-cart-addons-save:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.rd-bb-cart-addons-cancel {
+    padding: 0.45rem 1rem;
+    background: none;
+    border: 0;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.rd-bb-cart-form-msg {
+    font-size: 0.8rem;
+    color: #1a7f37;
+}
+
+.rd-bb-cart-form-msg.is-error {
+    color: #c0392b;
+}
+
+/* Side cart tweaks: tighter type, white surface reads on the panel */
+.rd-side-cart .rd-bb-cart-acc-toggle {
+    font-size: 0.82rem;
+}
+
+.rd-side-cart .rd-bb-cart-acc-body {
+    background: #fff;
+    padding: 0.6rem;
+}
