@@ -37,12 +37,26 @@ class RD_Box_Builder_Render {
             return;
         }
 
+        global $product;
+        $box_name = ($product instanceof WC_Product) ? $product->get_title() : '';
+
         ?>
         <div class="rd-bb-toggle-wrap">
             <button type="button" class="rd-bb-toggle" aria-pressed="false">
                 <span class="rd-bb-toggle-icon" aria-hidden="true"></span>
                 <span class="rd-bb-toggle-label"><?php esc_html_e('Build Your Own Box', 'rd-box-builder'); ?></span>
             </button>
+            <?php if ($box_name !== '') : ?>
+            <p class="rd-bb-set-box-notice">
+                <?php
+                printf(
+                    /* translators: %s: preset box product name */
+                    esc_html__('Or select our set %s box containing the following flavours:', 'rd-box-builder'),
+                    esc_html($box_name)
+                );
+                ?>
+            </p>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -116,18 +130,15 @@ class RD_Box_Builder_Render {
                         <button type="button" class="rd-bb-sheet-close" aria-label="<?php esc_attr_e('Close', 'rd-box-builder'); ?>">&times;</button>
                     </div>
                 </div>
+                <div class="rd-bb-picker-top">
+                <div class="rd-bb-picker-title-row">
                 <div class="rd-bb-title">
                     <?php echo esc_html($product->get_title()); ?><span class="rd-bb-title-suffix"> &mdash; <?php esc_html_e('Customised Box', 'rd-box-builder'); ?></span>
                 </div>
-                <div class="rd-bb-controls">
-                    <div class="rd-bb-filter" role="group" aria-label="<?php esc_attr_e('Filter donuts by category', 'rd-box-builder'); ?>"></div>
-                    <button type="button" class="rd-bb-search-toggle" aria-expanded="false" aria-controls="rd-bb-search-input" aria-label="<?php esc_attr_e('Search flavours', 'rd-box-builder'); ?>">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+                    <button type="button" class="rd-bb-filter-toggle" aria-expanded="false" aria-controls="rd-bb-filter" aria-label="<?php esc_attr_e('Filter flavours by category', 'rd-box-builder'); ?>">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18"></path><path d="M6 12h12"></path><path d="M10 19h4"></path></svg>
+                        <span class="rd-bb-filter-toggle-label"><?php esc_html_e('Display Filters', 'rd-box-builder'); ?></span>
                     </button>
-                    <div class="rd-bb-search-wrap">
-                        <svg class="rd-bb-search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
-                        <input type="search" id="rd-bb-search-input" class="rd-bb-search" placeholder="<?php esc_attr_e('Search flavours…', 'rd-box-builder'); ?>" aria-label="<?php esc_attr_e('Search flavours', 'rd-box-builder'); ?>">
-                    </div>
                     <div class="rd-bb-help">
                         <button type="button" class="rd-bb-help-toggle" aria-expanded="false" aria-controls="rd-bb-help-panel" aria-label="<?php esc_attr_e('How to use the box builder', 'rd-box-builder'); ?>">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>
@@ -151,6 +162,17 @@ class RD_Box_Builder_Render {
                             </div>
                         </div>
                     </div>
+                </div>
+                <div class="rd-bb-controls">
+                    <div id="rd-bb-filter" class="rd-bb-filter" role="group" aria-label="<?php esc_attr_e('Filter donuts by category', 'rd-box-builder'); ?>"></div>
+                    <button type="button" class="rd-bb-search-toggle" aria-expanded="false" aria-controls="rd-bb-search-input" aria-label="<?php esc_attr_e('Search flavours', 'rd-box-builder'); ?>">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+                    </button>
+                    <div class="rd-bb-search-wrap">
+                        <svg class="rd-bb-search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+                        <input type="search" id="rd-bb-search-input" class="rd-bb-search" placeholder="<?php esc_attr_e('Search flavours…', 'rd-box-builder'); ?>" aria-label="<?php esc_attr_e('Search flavours', 'rd-box-builder'); ?>">
+                    </div>
+                </div>
                 </div>
                 <div class="rd-bb-picker-headrow">
                     <div class="rd-bb-picker-header"><?php esc_html_e('Add Flavours to your box!', 'rd-box-builder'); ?></div>

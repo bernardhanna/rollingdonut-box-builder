@@ -100,6 +100,7 @@ class RD_Box_Builder_Assets {
                 'noMatches'     => __('No flavours match your search.', 'rd-box-builder'),
                 'noneSelected'  => __('No flavours selected yet. Add a flavour to see it here.', 'rd-box-builder'),
                 'listAdd'       => __('Add Flavour to Box', 'rd-box-builder'),
+                'scrollMore'    => __('Show more flavours', 'rd-box-builder'),
                 'listEmpty'     => __('Your box is empty. Add flavours to get started.', 'rd-box-builder'),
                 /* translators: %d = number of donuts still needed to fill the box. */
                 'addMore'       => __('Add %d more to complete your box', 'rd-box-builder'),
@@ -109,7 +110,8 @@ class RD_Box_Builder_Assets {
                 'hintsOff'      => __("Don't show tips again", 'rd-box-builder'),
                 'hintsOn'       => __('Show tips', 'rd-box-builder'),
                 /* translators: %s = flavour name. */
-                'addedFlavour'  => __('Added %s', 'rd-box-builder'),
+                'addedFlavour'  => __('Added %s to your box', 'rd-box-builder'),
+                'inBox'         => __('In box', 'rd-box-builder'),
                 /* translators: %s = flavour name. */
                 'removedFlavour' => __('Removed %s', 'rd-box-builder'),
                 'boxCleared'    => __('Box cleared', 'rd-box-builder'),

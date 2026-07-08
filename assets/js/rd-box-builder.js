@@ -40,6 +40,9 @@
     // Chevron used by the "more to scroll" hint at the bottom of the picker.
     var CHEVRON_DOWN_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"></path></svg>';
 
+    // Flavours shown per batch; more load automatically as the customer scrolls.
+    var PICKER_BATCH = 21;
+
     // Tick shown on a picker card's "in box" badge.
     var CHECK_ICON = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"></path></svg>';
 
@@ -55,6 +58,14 @@
         return window.matchMedia && window.matchMedia('(max-width: 1023px)').matches;
     }
 
+    // Desktop scrolls the whole picker; mobile scrolls the grid inside the sheet.
+    function getPickerScrollEl(dom) {
+        if (isMobile() && dom.pickerGrid && dom.pickerGrid.length) {
+            return dom.pickerGrid.get(0);
+        }
+        return dom.picker && dom.picker.length ? dom.picker.get(0) : null;
+    }
+
     // Slide the flavour picker up as a bottom sheet. `targetPos` (optional) is the
     // empty box slot that triggered it, so the next flavour added lands there.
     function openSheet(state, dom, targetPos) {
@@ -63,7 +74,11 @@
         dom.backdrop.prop('hidden', false);
         // The grid only knows its scrollable height once the sheet is on screen.
         if (window.requestAnimationFrame) {
-            window.requestAnimationFrame(function () { updateScrollHint(dom); });
+            window.requestAnimationFrame(function () {
+                rebuildPickerAutoLoad(state, dom);
+                bindScrollHintEvents(dom);
+                updateScrollHint(dom);
+            });
         }
     }
 
@@ -71,6 +86,7 @@
         state.sheetTarget = null;
         $('body').removeClass('rd-bb-sheet-open');
         dom.backdrop.prop('hidden', true);
+        resetControlsPanels(dom);
         // Drop any drag-resized height so the next open starts at the CSS default
         // and a stale px height can never leak into the desktop side panel.
         var picker = dom.picker && dom.picker.get(0);
@@ -79,6 +95,7 @@
             picker.style.maxHeight = '';
             picker.classList.remove('rd-bb-sheet-resizing');
         }
+        rebuildPickerAutoLoad(state, dom);
     }
 
     // Drag the sheet handle up/down to resize the bottom sheet; a plain tap (no
@@ -212,7 +229,8 @@
             boxView: readBoxView(),
             // Customer can opt out of the instructional nudges (Help panel);
             // remembered per browser. The functional count/progress stays.
-            hintsOff: readHintsOff()
+            hintsOff: readHintsOff(),
+            pickerLimit: PICKER_BATCH
         };
         // Fixed positional map of the box (one entry per slot). Lets a removed
         // donut leave its gap in place instead of the rest re-flowing left.
@@ -231,8 +249,12 @@
             backdrop: $('.rd-bb-sheet-backdrop'),
             title: $root.find('.rd-bb-title'),
             filter: $root.find('.rd-bb-filter'),
+            filterToggle: $root.find('.rd-bb-filter-toggle'),
+            controls: $root.find('.rd-bb-controls'),
+            headrow: $root.find('.rd-bb-picker-headrow'),
             search: $root.find('.rd-bb-search'),
             sort: $root.find('.rd-bb-sort'),
+            sortWrap: $root.find('.rd-bb-sort-wrap'),
             countCurrent: $('.rd-bb-count-current'),
             countMax: $('.rd-bb-count-max'),
             toggle: $('.rd-bb-toggle'),
@@ -275,11 +297,29 @@
         }
 
         renderFilter(state, dom);
+        syncSortPlacement(dom);
+        syncToolbarExpanded(dom);
         applyBoxView(state, dom);
         applyHintsPref(state);
         bindEvents(state, dom);
+
+        // Keep the sort control in the right place as the viewport crosses the
+        // compact toolbar breakpoint (controls row on phones/tablets, header on desktop).
+        if (window.matchMedia) {
+            var sortMq = window.matchMedia('(max-width: 1023px)');
+            var onSortMq = function () { syncSortPlacement(dom); };
+            if (sortMq.addEventListener) {
+                sortMq.addEventListener('change', onSortMq);
+            } else if (sortMq.addListener) {
+                sortMq.addListener(onSortMq);
+            }
+        }
+        // Group the CTA buttons before initCart so the in-cart stepper (inserted
+        // right after the add button) lands inside the same row wrapper.
+        wrapCtaButtons(dom);
         initDragAndDrop(state, dom);
         setupScrollHint(state, dom);
+        setupPickerAutoLoad(state, dom);
         setupMobileBarAutohide(state, dom);
         render(state, dom);
         initCart(state, dom);
@@ -289,6 +329,24 @@
         if (consumeReopenFlag()) {
             setActive(state, dom, true);
         }
+    }
+
+    // The cart template ships "Add Box to Cart" and "Buy Now" as separate,
+    // stacked buttons. Wrap them in one row so CSS can place them side-by-side on
+    // desktop. The wrapper is display:contents by default, so the mobile/stacked
+    // layout is untouched; only the desktop media query turns it into a flex row.
+    function wrapCtaButtons(dom) {
+        var $add = dom.form.find('.single_add_to_cart_button').first();
+        var $buy = dom.form.find('.rd-buy-now-button').first();
+        // Buy Now is skipped for some product types; nothing to pair up then.
+        if (!$add.length || !$buy.length) { return; }
+        if ($add.parent().hasClass('rd-bb-cta-row') || $add.parent().hasClass('rd-product-cta-row')) { return; }
+
+        var $row = $('<div class="rd-bb-cta-row"></div>');
+        $add.before($row);
+        // Order: add (→ stepper inserted after it) then buy. Both stay inside the
+        // form so AJAX serialisation of the cart fields is unaffected.
+        $row.append($add).append($buy);
     }
 
     // Remember the customer's preferred box layout (grid/list) across visits.
@@ -541,8 +599,9 @@
             }
 
             state.layout[idx] = item.order;
+            state.addFlash = { order: item.order, slotPos: idx };
             commitLayout(state, dom);
-            toast(dom, addedMsg(item));
+            toastSuccess(dom, addedMsg(item));
             return;
         }
 
@@ -551,8 +610,9 @@
             return;
         }
         var before = item.qty;
+        state.addFlash = { order: item.order, slotPos: null };
         setQty(state, dom, item, item.qty + 1);
-        if (item.qty > before) { toast(dom, addedMsg(item)); }
+        if (item.qty > before) { toastSuccess(dom, addedMsg(item)); }
     }
 
     function removeOne(state, dom, order) {
@@ -691,6 +751,47 @@
         syncTitlePrice(state, dom);
         updateScrollHint(dom);
         updateAllergenAccordion(state);
+        if (state.addFlash) {
+            flashAddedItem(dom, state.addFlash);
+            state.addFlash = null;
+        }
+    }
+
+    function flashAddedItem(dom, flash) {
+        if (!flash || flash.order == null) { return; }
+
+        var $card = dom.pickerGrid.find('.rd-bb-card[data-order="' + flash.order + '"]');
+        $card.addClass('rd-bb-card--just-added');
+
+        var $slot;
+        if (flash.slotPos != null && !isNaN(flash.slotPos)) {
+            $slot = dom.slots.find('.rd-bb-slot[data-position="' + flash.slotPos + '"]');
+        } else {
+            $slot = dom.slots.find('.rd-bb-slot--filled').last();
+        }
+        if ($slot && $slot.length) {
+            $slot.addClass('rd-bb-slot--just-filled');
+        }
+
+        if (dom.root && dom.root.length) {
+            dom.root.addClass('rd-bb--just-updated');
+        }
+        if (dom.progressFill && dom.progressFill.length) {
+            dom.progressFill.addClass('rd-bb-progress-fill--pulse');
+        }
+
+        window.setTimeout(function () {
+            $card.removeClass('rd-bb-card--just-added');
+            if ($slot && $slot.length) {
+                $slot.removeClass('rd-bb-slot--just-filled');
+            }
+            if (dom.root && dom.root.length) {
+                dom.root.removeClass('rd-bb--just-updated');
+            }
+            if (dom.progressFill && dom.progressFill.length) {
+                dom.progressFill.removeClass('rd-bb-progress-fill--pulse');
+            }
+        }, 1000);
     }
 
     // Keep the server-rendered "Allergen Info" accordion in sync with the box.
@@ -769,23 +870,30 @@
         }
     }
 
-    // Pulsing translucent arrow shown when the picker can still be scrolled, so
-    // customers know there are more flavours below the fold.
-    function setupScrollHint(state, dom) {
-        if (!dom.picker || !dom.picker.length) { return; }
+    function mountScrollHint(dom) {
+        if (!dom.scrollHint || !dom.scrollHint.length) { return null; }
+        var el = getPickerScrollEl(dom);
+        if (!el) { return null; }
+        if (dom.scrollHint.parent()[0] !== el) {
+            dom.scrollHint.appendTo(el);
+        }
+        return el;
+    }
 
-        dom.scrollHint = $('<div class="rd-bb-scroll-hint is-hidden" aria-hidden="true">'
-            + '<span class="rd-bb-scroll-hint-inner">' + CHEVRON_DOWN_ICON + '</span>'
-            + '</div>').appendTo(dom.picker);
-
-        dom.picker.on('scroll', function () { updateScrollHint(dom); });
-        $(window).on('resize', function () { updateScrollHint(dom); });
+    function bindScrollHintEvents(dom) {
+        var el = mountScrollHint(dom);
+        if (!el) { return; }
+        if (dom._scrollHintEl && dom._scrollHintEl !== el) {
+            $(dom._scrollHintEl).off('scroll.rdbbHint');
+        }
+        dom._scrollHintEl = el;
+        $(el).off('scroll.rdbbHint').on('scroll.rdbbHint', function () { updateScrollHint(dom); });
     }
 
     function updateScrollHint(dom) {
         if (!dom.scrollHint || !dom.scrollHint.length) { return; }
 
-        var el = dom.picker.get(0);
+        var el = getPickerScrollEl(dom);
         if (!el) { return; }
 
         var overflow = el.scrollHeight - el.clientHeight;
@@ -793,6 +901,101 @@
         var show = overflow > 24 && !atBottom;
 
         dom.scrollHint.toggleClass('is-hidden', !show);
+        dom.scrollHint.attr('aria-hidden', show ? 'false' : 'true');
+    }
+
+    function scrollPickerDown(dom) {
+        var el = getPickerScrollEl(dom);
+        if (!el) { return; }
+
+        var step = Math.max(200, Math.round(el.clientHeight * 0.7));
+        var nextTop = Math.min(el.scrollTop + step, el.scrollHeight - el.clientHeight);
+
+        if (el.scrollTo) {
+            el.scrollTo({ top: nextTop, behavior: 'smooth' });
+        } else {
+            el.scrollTop = nextTop;
+        }
+
+        window.setTimeout(function () { updateScrollHint(dom); }, 400);
+    }
+
+    // Pulsing translucent arrow shown when the picker can still be scrolled, so
+    // customers know there are more flavours below the fold.
+    function setupScrollHint(state, dom) {
+        if (!dom.picker || !dom.picker.length) { return; }
+
+        var label = esc(i18n.scrollMore || 'Show more flavours');
+        dom.scrollHint = $('<div class="rd-bb-scroll-hint is-hidden" aria-hidden="true">'
+            + '<button type="button" class="rd-bb-scroll-hint-inner rd-bb-scroll-hint-btn" aria-label="' + label + '">'
+            + CHEVRON_DOWN_ICON
+            + '</button>'
+            + '</div>');
+
+        dom.scrollHint.on('click', '.rd-bb-scroll-hint-btn', function (e) {
+            e.preventDefault();
+            scrollPickerDown(dom);
+        });
+
+        bindScrollHintEvents(dom);
+        $(window).off('resize.rdbbHint').on('resize.rdbbHint', function () {
+            bindScrollHintEvents(dom);
+            updateScrollHint(dom);
+        });
+    }
+
+    function getVisiblePickerItems(state) {
+        return state.items.filter(function (item) {
+            if (!item.editable) { return false; }
+            if (state.sort === 'selected' && !(item.qty > 0)) { return false; }
+            if (state.filter && item.cats.indexOf(state.filter) === -1) { return false; }
+            if (state.search && String(item.name).toLowerCase().indexOf(state.search) === -1) { return false; }
+            return true;
+        }).sort(function (a, b) { return compareItems(a, b, state.sort); });
+    }
+
+    function resetPickerBatch(state) {
+        state.pickerLimit = PICKER_BATCH;
+    }
+
+    function setupPickerAutoLoad(state, dom) {
+        if (!window.IntersectionObserver) { return; }
+
+        if (dom.pickerObserver) {
+            dom.pickerObserver.disconnect();
+        }
+
+        var scrollRoot = getPickerScrollEl(dom);
+        var root = (isMobile() && scrollRoot) ? scrollRoot : null;
+
+        dom.pickerObserver = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (!entry.isIntersecting || dom.pickerLoading) { return; }
+
+                var visible = getVisiblePickerItems(state);
+                var limit = state.pickerLimit || PICKER_BATCH;
+                if (limit >= visible.length) { return; }
+
+                dom.pickerLoading = true;
+                state.pickerLimit = Math.min(visible.length, limit + PICKER_BATCH);
+                renderPicker(state, dom, total(state));
+                dom.pickerLoading = false;
+            });
+        }, { root: root, rootMargin: '0px 0px 240px 0px', threshold: 0 });
+    }
+
+    function rebuildPickerAutoLoad(state, dom) {
+        setupPickerAutoLoad(state, dom);
+        observePickerSentinel(dom);
+    }
+
+    function observePickerSentinel(dom) {
+        if (!dom.pickerObserver) { return; }
+        dom.pickerObserver.disconnect();
+        var sentinel = dom.pickerGrid.find('.rd-bb-picker-sentinel').get(0);
+        if (sentinel) {
+            dom.pickerObserver.observe(sentinel);
+        }
     }
 
     // Mirror WPC's live box total (.woosb-sync-price) next to the builder title
@@ -821,16 +1024,27 @@
         if (!dom.summary || !dom.summary.length) { return; }
 
         var rows = '';
+        var rowCount = 0;
         state.items.forEach(function (item) {
             if (item.qty <= 0) { return; }
+            rowCount++;
             rows += '<div class="woosb-product">'
                 + '<div class="woosb-thumb"><div class="woosb-thumb-ori">'
                 + '<img src="' + esc(item.thumb) + '" alt="' + esc(item.name) + '">'
                 + '</div></div>'
-                + '<div class="woosb-title"><div class="woosb-name">' + item.qty + ' &times; ' + esc(item.name) + '</div></div>'
-                + '<div class="woosb-price"><div class="woosb-price-ori">' + (item.priceHtml || '') + '</div></div>'
+                + '<div class="woosb-title"><div class="woosb-name rd-bb-summary-line">'
+                + '<span class="rd-bb-summary-qty">' + item.qty + ' &times;</span>'
+                + '<span class="rd-bb-summary-label">' + esc(item.name) + '</span>'
+                + '</div></div>'
                 + '</div>';
         });
+
+        dom.summary.removeClass('rd-bb-summary--cols-2 rd-bb-summary--cols-3');
+        if (rowCount > 12) {
+            dom.summary.addClass('rd-bb-summary--cols-3');
+        } else if (rowCount > 6) {
+            dom.summary.addClass('rd-bb-summary--cols-2');
+        }
 
         dom.summary.html('<div class="woosb-products">' + rows + '</div>');
     }
@@ -954,7 +1168,52 @@
             var $chip = $(this);
             $chip.toggleClass('is-active', ($chip.attr('data-cat') || '') === state.filter);
         });
+        resetPickerBatch(state);
         renderPicker(state, dom, total(state));
+    }
+
+    // On phones/tablets the toolbar collapses to a single row beside the product
+    // title; sort/search sit with the filter control until a panel is opened.
+    function syncToolbarExpanded(dom) {
+        if (!dom.controls || !dom.controls.length) { return; }
+        var $top = dom.controls.closest('.rd-bb-picker-top');
+        if (!$top.length) { return; }
+        var expanded = dom.controls.hasClass('rd-bb-filter-open') || dom.controls.hasClass('rd-bb-search-open');
+        $top.toggleClass('rd-bb-picker-top--expanded', expanded);
+    }
+
+    function syncSortPlacement(dom) {
+        if (!dom.sortWrap || !dom.sortWrap.length || !dom.controls.length) {
+            return;
+        }
+
+        var compact = window.matchMedia
+            && window.matchMedia('(max-width: 1023px)').matches;
+        var builderActive = document.body.classList.contains('rd-bb-active');
+
+        if (compact || builderActive) {
+            if (!dom.sortWrap.parent().is(dom.controls)) {
+                dom.controls.append(dom.sortWrap);
+            }
+            var $searchWrap = dom.controls.find('.rd-bb-search-wrap');
+            if ($searchWrap.length) {
+                $searchWrap.after(dom.sortWrap);
+            }
+            var $filter = dom.controls.find('.rd-bb-filter');
+            if ($filter.length) {
+                dom.controls.prepend($filter);
+            }
+            dom.picker.addClass('rd-bb-has-inline-sort');
+        } else {
+            if (dom.headrow.length && !dom.sortWrap.parent().is(dom.headrow)) {
+                dom.headrow.append(dom.sortWrap);
+            }
+            dom.picker.removeClass('rd-bb-has-inline-sort');
+            if (!builderActive) {
+                dom.controls.removeClass('rd-bb-filter-open rd-bb-search-open');
+                syncToolbarExpanded(dom);
+            }
+        }
     }
 
     // Allergen info badge + panel for a picker card. Mirrors the theme's
@@ -1003,7 +1262,7 @@
             out += badgePill('new', i18n.newFlavour || 'New', i18n.newFlavour || 'New');
         }
         if (hay.indexOf('vegan') !== -1) {
-            out += badgePill('vg', i18n.vegan || 'Vegan', 'VG');
+            out += badgePill('vg', i18n.vegan || 'Vegan', i18n.vegan || 'Vegan');
         }
         if (hay.indexOf('gluten-free') !== -1 || hay.indexOf('gluten free') !== -1 || hay.indexOf('gluten_free') !== -1) {
             out += badgePill('gf', i18n.glutenFree || 'Gluten free', 'GF');
@@ -1050,18 +1309,12 @@
         // (banner + blocked buttons), making the greyed-out state self-explaining.
         dom.picker.toggleClass('rd-bb-picker--full', isFull);
 
-        var visible = state.items.filter(function (item) {
-            if (!item.editable) { return false; }
-            // "Currently Selected" narrows the picker to flavours already in the box.
-            if (state.sort === 'selected' && !(item.qty > 0)) { return false; }
-            if (state.filter && item.cats.indexOf(state.filter) === -1) { return false; }
-            if (state.search && String(item.name).toLowerCase().indexOf(state.search) === -1) { return false; }
-            return true;
-        });
+        var visible = getVisiblePickerItems(state);
+        var limit = Math.min(state.pickerLimit || PICKER_BATCH, visible.length);
+        var batch = visible.slice(0, limit);
+        var hasMore = visible.length > limit;
 
-        visible.sort(function (a, b) { return compareItems(a, b, state.sort); });
-
-        visible.forEach(function (item) {
+        batch.forEach(function (item) {
             shown++;
 
             var atItemMax = item.max > 0 && item.qty >= item.max;
@@ -1074,7 +1327,14 @@
 
             var inBox = item.qty > 0;
             var inBoxBadge = inBox
-                ? '<span class="rd-bb-card-badge" aria-hidden="true">' + CHECK_ICON + '<span class="rd-bb-card-badge-count">' + item.qty + '</span></span>'
+                ? '<span class="rd-bb-card-badge" role="status">'
+                + CHECK_ICON
+                + '<span class="rd-bb-card-badge-text">' + esc(i18n.inBox || 'In box') + '</span>'
+                + (item.qty > 1 ? '<span class="rd-bb-card-badge-count">×' + item.qty + '</span>' : '')
+                + '</span>'
+                : '';
+            var inBoxLabel = inBox
+                ? '<span class="rd-bb-card-in-box-label" role="status">' + esc(i18n.inBox || 'In box') + '</span>'
                 : '';
 
             html += '<div class="rd-bb-card' + (addBlocked ? ' rd-bb-card--blocked' : '') + (inBox ? ' rd-bb-card--in-box' : '') + '" data-order="' + item.order + '" role="listitem">'
@@ -1088,8 +1348,13 @@
                 + '<span class="rd-bb-card-qty">' + item.qty + '</span>'
                 + '<button type="button"' + blockAttr + ' data-order="' + item.order + '" aria-label="+">+</button>'
                 + '</div>'
+                + inBoxLabel
                 + '</div>';
         });
+
+        if (hasMore) {
+            html += '<div class="rd-bb-picker-sentinel" aria-hidden="true"></div>';
+        }
 
         if (!shown) {
             var emptyMsg;
@@ -1110,6 +1375,13 @@
         }
 
         dom.pickerGrid.html(html);
+        observePickerSentinel(dom);
+        bindScrollHintEvents(dom);
+        if (window.requestAnimationFrame) {
+            window.requestAnimationFrame(function () { updateScrollHint(dom); });
+        } else {
+            updateScrollHint(dom);
+        }
     }
 
     function syncAddToCart(state, dom, current) {
@@ -1374,6 +1646,12 @@
         if ($alert.length) { $alert.stop(true, true).slideDown(); }
     }
 
+    function readFormQuantity(dom) {
+        var $qty = dom.form.find('input.qty').first();
+        var val = parseInt($qty.val(), 10);
+        return (!isNaN(val) && val > 0) ? val : 1;
+    }
+
     function cartAdd(state, dom, opts) {
         if (cart.busy) { return; }
         opts = opts || {};
@@ -1393,7 +1671,7 @@
         if (!aj.url || !aj.add) { toast(dom, i18n.addError || 'Could not add to basket.'); return; }
 
         var ids = dom.form.find('input[name="woosb_ids"]').first().val() || '';
-        var fd = addonFormData({ action: aj.add, nonce: aj.nonce, product_id: cfg.productId, quantity: 1, woosb_ids: ids });
+        var fd = addonFormData({ action: aj.add, nonce: aj.nonce, product_id: cfg.productId, quantity: readFormQuantity(dom), woosb_ids: ids });
 
         // The button the customer actually pressed shows "Processing…"; everything
         // else is greyed out. Fall back to the matching inline button when the
@@ -1521,12 +1799,14 @@
 
         dom.search.on('input', function () {
             state.search = String($(this).val() || '').trim().toLowerCase();
+            resetPickerBatch(state);
             renderPicker(state, dom, total(state));
         });
 
         if (dom.sort && dom.sort.length) {
             dom.sort.on('change', function () {
                 state.sort = String($(this).val() || 'az');
+                resetPickerBatch(state);
                 renderPicker(state, dom, total(state));
             });
         }
@@ -1536,10 +1816,29 @@
         $(document).on('click', '.rd-bb-search-toggle', function (e) {
             e.preventDefault();
             var $controls = $(this).closest('.rd-bb-controls');
+            if (!$controls.hasClass('rd-bb-filter-open')) {
+                return;
+            }
             var open = !$controls.hasClass('rd-bb-search-open');
             $controls.toggleClass('rd-bb-search-open', open);
             $(this).attr('aria-expanded', open ? 'true' : 'false');
             if (open) { dom.search.trigger('focus'); }
+            syncToolbarExpanded(dom);
+        });
+
+        // Compact category filter (small screens): the icon reveals the chip row.
+        $(document).on('click', '.rd-bb-filter-toggle', function (e) {
+            e.preventDefault();
+            var $top = $(this).closest('.rd-bb-picker-top');
+            var $controls = $top.length ? $top.find('.rd-bb-controls') : $(this).closest('.rd-bb-controls');
+            var open = !$controls.hasClass('rd-bb-filter-open');
+            $controls.toggleClass('rd-bb-filter-open', open);
+            if (!open) {
+                $controls.removeClass('rd-bb-search-open');
+                $controls.find('.rd-bb-search-toggle').attr('aria-expanded', 'false');
+            }
+            $(this).attr('aria-expanded', open ? 'true' : 'false');
+            syncToolbarExpanded(dom);
         });
 
         // Help popover: toggle on the "?" button, dismiss on close/outside/Escape.
@@ -1770,16 +2069,30 @@
         }
     }
 
+    function resetControlsPanels(dom) {
+        if (!dom.controls || !dom.controls.length) { return; }
+        dom.controls.removeClass('rd-bb-filter-open rd-bb-search-open');
+        if (dom.filterToggle && dom.filterToggle.length) {
+            dom.filterToggle.attr('aria-expanded', 'false');
+        }
+        dom.controls.find('.rd-bb-search-toggle').attr('aria-expanded', 'false');
+        $('#rd-bb-help-panel').prop('hidden', true);
+        $('.rd-bb-help-toggle').attr('aria-expanded', 'false');
+        syncToolbarExpanded(dom);
+    }
+
     function setActive(state, dom, on) {
         showTransitionOverlay();
         state.active = on;
         $('body').toggleClass('rd-bb-active', on);
+        syncSortPlacement(dom);
         dom.toggle.attr('aria-pressed', on ? 'true' : 'false');
         dom.toggle.find('.rd-bb-toggle-label').text(on ? (i18n.close || i18n.viewBox || 'Close Box Builder Mode') : (i18n.buildYourOwn || 'Build Your Own Box'));
         dom.root.prop('hidden', !on);
         dom.summary.prop('hidden', on);
         dom.picker.prop('hidden', !on);
         dom.mobilebar.prop('hidden', !on);
+        resetControlsPanels(dom);
 
         // Leaving builder mode always collapses the mobile sheet and reverts any
         // unsaved customisation back to the default box selection.
@@ -1793,7 +2106,11 @@
         // The picker only gets its scrollable height once shown; recheck the
         // scroll hint after layout settles.
         if (on && window.requestAnimationFrame) {
-            window.requestAnimationFrame(function () { updateScrollHint(dom); });
+            window.requestAnimationFrame(function () {
+                rebuildPickerAutoLoad(state, dom);
+                bindScrollHintEvents(dom);
+                updateScrollHint(dom);
+            });
         }
 
         // Hiding the hero/header shifts the page up; scroll to the topmost part
@@ -1895,7 +2212,12 @@
 
         // Picker cards are clone sources only. Releasing over the box adds the
         // flavour to the targeted slot; nothing in the box moves beforehand.
-        window.Sortable.create(dom.pickerGrid.get(0), $.extend({}, fallbackOpts, {
+        var pickerSortable = window.Sortable.create(dom.pickerGrid.get(0), $.extend({}, fallbackOpts, {
+            // Drag-and-drop is a desktop affordance. On mobile the picker is a
+            // bottom sheet whose flavour grid must scroll by touch, so Sortable
+            // (forceFallback) is disabled there — otherwise it swallows the
+            // vertical swipe and the list can't be scrolled.
+            disabled: isMobile(),
             group: { name: 'rdbb', pull: 'clone', put: false },
             sort: false,
             draggable: '.rd-bb-card',
@@ -1920,7 +2242,9 @@
 
         // The box: donuts can be rearranged, but they stay locked in place during
         // the drag and only swap with the slot the donut is released over.
-        window.Sortable.create(boxEl, $.extend({}, fallbackOpts, {
+        var boxSortable = window.Sortable.create(boxEl, $.extend({}, fallbackOpts, {
+            // Disabled on mobile (see picker note above) so touch scrolling works.
+            disabled: isMobile(),
             // put:false → an incoming picker clone is never inserted (no shuffle);
             // we add it manually on drop. sort:false → box items never reorder.
             group: { name: 'rdbb', pull: false, put: false },
@@ -1945,6 +2269,18 @@
                 resetBoxDrag(dom);
             }
         }));
+
+        // Toggle drag on/off when the viewport crosses the mobile breakpoint so a
+        // desktop→mobile resize (or rotation) frees up touch scrolling, and the
+        // reverse restores drag-and-drop without a reload.
+        $(window).on('resize', function () {
+            var off = isMobile();
+            pickerSortable.option('disabled', off);
+            boxSortable.option('disabled', off);
+            rebuildPickerAutoLoad(state, dom);
+            bindScrollHintEvents(dom);
+            updateScrollHint(dom);
+        });
     }
 
     /* ------------------------------------------------------------------ utils */
@@ -1953,20 +2289,29 @@
 
     // Plain, auto-dismissing status toast.
     function toast(dom, message) {
-        showToast(message, null, 2200);
+        showToast(message, null, 2200, null);
+    }
+
+    function toastSuccess(dom, message) {
+        showToast(message, null, 3200, 'success');
     }
 
     // Toast with an "Undo" action; stays up longer so the action is reachable.
     function toastUndo(dom, message, onUndo) {
-        showToast(message, onUndo, 5000);
+        showToast(message, onUndo, 5000, null);
     }
 
-    function showToast(message, onUndo, timeout) {
+    function showToast(message, onUndo, timeout, variant) {
         var $t = $('.rd-bb-toast');
         if (!$t.length) {
             $t = $('<div class="rd-bb-toast" role="status" aria-live="polite"></div>').appendTo('body');
         }
         $t.empty();
+        $t.removeClass('rd-bb-toast--success rd-bb-toast--action');
+        if (variant === 'success') {
+            $t.addClass('rd-bb-toast--success');
+            $('<span class="rd-bb-toast-icon" aria-hidden="true">' + CHECK_ICON + '</span>').appendTo($t);
+        }
         $('<span class="rd-bb-toast-msg"></span>').text(message).appendTo($t);
 
         var hasAction = (typeof onUndo === 'function');
