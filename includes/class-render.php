@@ -135,9 +135,10 @@ class RD_Box_Builder_Render {
                 <div class="rd-bb-title">
                     <?php echo esc_html($product->get_title()); ?><span class="rd-bb-title-suffix"> &mdash; <?php esc_html_e('Customised Box', 'rd-box-builder'); ?></span>
                 </div>
-                    <button type="button" class="rd-bb-filter-toggle" aria-expanded="false" aria-controls="rd-bb-filter" aria-label="<?php esc_attr_e('Filter flavours by category', 'rd-box-builder'); ?>">
+                    <button type="button" class="rd-bb-filter-toggle" aria-expanded="false" aria-controls="rd-bb-filter" aria-label="<?php esc_attr_e('Show category filters, search and sort', 'rd-box-builder'); ?>" data-label-open="<?php esc_attr_e('Show category filters, search and sort', 'rd-box-builder'); ?>" data-label-close="<?php esc_attr_e('Hide category filters, search and sort', 'rd-box-builder'); ?>">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18"></path><path d="M6 12h12"></path><path d="M10 19h4"></path></svg>
-                        <span class="rd-bb-filter-toggle-label"><?php esc_html_e('Display Filters', 'rd-box-builder'); ?></span>
+                        <span class="rd-bb-filter-toggle-label"><?php esc_html_e('Filters & Search', 'rd-box-builder'); ?></span>
+                        <span class="rd-bb-filter-toggle-chevron" aria-hidden="true"></span>
                     </button>
                     <div class="rd-bb-help">
                         <button type="button" class="rd-bb-help-toggle" aria-expanded="false" aria-controls="rd-bb-help-panel" aria-label="<?php esc_attr_e('How to use the box builder', 'rd-box-builder'); ?>">

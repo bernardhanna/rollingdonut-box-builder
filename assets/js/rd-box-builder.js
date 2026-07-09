@@ -1833,11 +1833,18 @@
             var $controls = $top.length ? $top.find('.rd-bb-controls') : $(this).closest('.rd-bb-controls');
             var open = !$controls.hasClass('rd-bb-filter-open');
             $controls.toggleClass('rd-bb-filter-open', open);
-            if (!open) {
+            if (isMobile()) {
+                $controls.toggleClass('rd-bb-search-open', open);
+                $controls.find('.rd-bb-search-toggle').attr('aria-expanded', open ? 'true' : 'false');
+            } else if (!open) {
                 $controls.removeClass('rd-bb-search-open');
                 $controls.find('.rd-bb-search-toggle').attr('aria-expanded', 'false');
             }
             $(this).attr('aria-expanded', open ? 'true' : 'false');
+            var label = open ? $(this).data('label-close') : $(this).data('label-open');
+            if (label) {
+                $(this).attr('aria-label', label);
+            }
             syncToolbarExpanded(dom);
         });
 
