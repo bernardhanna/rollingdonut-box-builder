@@ -38,14 +38,34 @@ class RD_Box_Builder_Render {
         }
 
         global $product;
-        $box_name = ($product instanceof WC_Product) ? $product->get_title() : '';
+        $box_name      = ($product instanceof WC_Product) ? $product->get_title() : '';
+        $uses_side_cart = function_exists('matrix_rd_uses_side_cart') && matrix_rd_uses_side_cart();
+        $cart_count     = (function_exists('WC') && WC()->cart) ? (int) WC()->cart->get_cart_contents_count() : 0;
+        $cart_url       = function_exists('wc_get_cart_url') ? wc_get_cart_url() : '';
 
         ?>
         <div class="rd-bb-toggle-wrap">
-            <button type="button" class="rd-bb-toggle" aria-pressed="false">
-                <span class="rd-bb-toggle-icon" aria-hidden="true"></span>
-                <span class="rd-bb-toggle-label"><?php esc_html_e('Build Your Own Box', 'rd-box-builder'); ?></span>
-            </button>
+            <div class="rd-bb-toggle-row">
+                <button type="button" class="rd-bb-toggle" aria-pressed="false">
+                    <span class="rd-bb-toggle-icon" aria-hidden="true"></span>
+                    <span class="rd-bb-toggle-label"><?php esc_html_e('Build Your Own Box', 'rd-box-builder'); ?></span>
+                </button>
+                <a
+                    href="<?php echo esc_url($cart_url); ?>"
+                    class="rd-bb-cart-btn"
+                    title="<?php esc_attr_e('View your shopping cart', 'rd-box-builder'); ?>"
+                    aria-label="<?php esc_attr_e('View your shopping cart', 'rd-box-builder'); ?>"
+                    data-initial-count="<?php echo esc_attr((string) $cart_count); ?>"
+                    <?php echo $uses_side_cart ? 'data-rd-side-cart-trigger' : ''; ?>
+                >
+                    <span class="iconify rd-bb-cart-btn__icon" data-icon="grommet-icons:basket" data-width="28" data-height="28" aria-hidden="true"></span>
+                    <span
+                        class="rd-bb-cart-btn__count"
+                        <?php echo $cart_count > 0 ? '' : 'hidden'; ?>
+                        aria-hidden="<?php echo $cart_count > 0 ? 'false' : 'true'; ?>"
+                    ><?php echo esc_html((string) $cart_count); ?></span>
+                </a>
+            </div>
             <?php if ($box_name !== '') : ?>
             <p class="rd-bb-set-box-notice">
                 <?php
@@ -133,11 +153,15 @@ class RD_Box_Builder_Render {
                 <div class="rd-bb-picker-top">
                 <div class="rd-bb-picker-title-row">
                 <div class="rd-bb-title">
-                    <?php echo esc_html($product->get_title()); ?><span class="rd-bb-title-suffix"> &mdash; <?php esc_html_e('Customised Box', 'rd-box-builder'); ?></span>
+                    <span class="rd-bb-title-name"><?php echo esc_html($product->get_title()); ?></span>
+                    <div class="rd-bb-title-sub">
+                        <span class="rd-bb-title-suffix">&mdash; <?php esc_html_e('Customised Box', 'rd-box-builder'); ?></span>
+                        <span class="rd-bb-title-price"></span>
+                    </div>
                 </div>
-                    <button type="button" class="rd-bb-filter-toggle" aria-expanded="false" aria-controls="rd-bb-filter" aria-label="<?php esc_attr_e('Show category filters, search and sort', 'rd-box-builder'); ?>" data-label-open="<?php esc_attr_e('Show category filters, search and sort', 'rd-box-builder'); ?>" data-label-close="<?php esc_attr_e('Hide category filters, search and sort', 'rd-box-builder'); ?>">
+                    <button type="button" class="rd-bb-filter-toggle" aria-expanded="false" aria-controls="rd-bb-filter" aria-label="<?php esc_attr_e('Show filters, search and sort', 'rd-box-builder'); ?>" data-label-open="<?php esc_attr_e('Show filters, search and sort', 'rd-box-builder'); ?>" data-label-close="<?php esc_attr_e('Hide filters, search and sort', 'rd-box-builder'); ?>" data-label-text-open="<?php esc_attr_e('Show filters & search', 'rd-box-builder'); ?>" data-label-text-close="<?php esc_attr_e('Hide filters & search', 'rd-box-builder'); ?>">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18"></path><path d="M6 12h12"></path><path d="M10 19h4"></path></svg>
-                        <span class="rd-bb-filter-toggle-label"><?php esc_html_e('Filters & Search', 'rd-box-builder'); ?></span>
+                        <span class="rd-bb-filter-toggle-label"><?php esc_html_e('Show filters & search', 'rd-box-builder'); ?></span>
                         <span class="rd-bb-filter-toggle-chevron" aria-hidden="true"></span>
                     </button>
                     <div class="rd-bb-help">

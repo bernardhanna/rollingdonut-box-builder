@@ -39,6 +39,7 @@
 
     // Chevron used by the "more to scroll" hint at the bottom of the picker.
     var CHEVRON_DOWN_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"></path></svg>';
+    var SCROLLBAR_CHEVRON_ICON = '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">';
 
     // Flavours shown per batch; more load automatically as the customer scrolls.
     var PICKER_BATCH = 21;
@@ -258,6 +259,7 @@
             countCurrent: $('.rd-bb-count-current'),
             countMax: $('.rd-bb-count-max'),
             toggle: $('.rd-bb-toggle'),
+            cartBtn: $('.rd-bb-cart-btn'),
             clear: $root.find('.rd-bb-clear'),
             progress: $root.find('.rd-bb-progress'),
             progressFill: $root.find('.rd-bb-progress-fill'),
@@ -296,6 +298,8 @@
             if ($note.length) { $root.after($note); }
         }
 
+        unwrapSummaryFooter(dom);
+
         renderFilter(state, dom);
         syncSortPlacement(dom);
         syncToolbarExpanded(dom);
@@ -319,6 +323,7 @@
         wrapCtaButtons(dom);
         initDragAndDrop(state, dom);
         setupScrollHint(state, dom);
+        syncPickerScrollbar(dom);
         setupPickerAutoLoad(state, dom);
         setupMobileBarAutohide(state, dom);
         render(state, dom);
@@ -329,6 +334,19 @@
         if (consumeReopenFlag()) {
             setActive(state, dom, true);
         }
+    }
+
+    // Remove the desktop footer wrapper if a previous version added it.
+    function unwrapSummaryFooter(dom) {
+        var $scope = dom.form && dom.form.length ? dom.form : $(document);
+        var $footer = $scope.find('.rd-bb-summary-footer').first();
+        if (!$footer.length) {
+            return;
+        }
+
+        $footer.children().insertAfter($footer);
+        $footer.remove();
+        dom.summaryFooter = null;
     }
 
     // The cart template ships "Add Box to Cart" and "Buy Now" as separate,
@@ -750,6 +768,7 @@
         syncAddToCart(state, dom, current);
         syncTitlePrice(state, dom);
         updateScrollHint(dom);
+        updatePickerScrollbar(dom);
         updateAllergenAccordion(state);
         if (state.addFlash) {
             flashAddedItem(dom, state.addFlash);
@@ -941,7 +960,332 @@
         $(window).off('resize.rdbbHint').on('resize.rdbbHint', function () {
             bindScrollHintEvents(dom);
             updateScrollHint(dom);
+            updatePickerScrollbar(dom);
         });
+    }
+
+    function scrollPickerTo(dom, targetScrollTop) {
+        var el = getPickerScrollEl(dom);
+        if (!el) {
+            return;
+        }
+
+        var maxTop = Math.max(0, el.scrollHeight - el.clientHeight);
+        var top = Math.max(0, Math.min(maxTop, targetScrollTop));
+        var smooth = window.matchMedia && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        if (smooth && el.scrollTo) {
+            el.scrollTo({ top: top, behavior: 'smooth' });
+        } else {
+            el.scrollTop = top;
+        }
+    }
+
+    // Desktop-only custom divider scrollbar between the flavour grid and the box.
+    function teardownPickerScrollbar(dom) {
+        if (dom.scrollbar && dom.scrollbar.length) {
+            dom.scrollbar.remove();
+        }
+
+        dom.scrollbar = null;
+        dom.scrollbarTrack = null;
+        dom.scrollbarThumb = null;
+        dom.scrollbarChevronUp = null;
+        dom.scrollbarChevronDown = null;
+        dom._scrollbarBound = false;
+        dom._scrollbarLastTop = null;
+
+        if (dom.pickerScroll && dom.pickerScroll.length && dom.picker && dom.picker.length) {
+            if (dom.picker.parent().is(dom.pickerScroll)) {
+                dom.pickerScroll.before(dom.picker);
+                dom.pickerScroll.remove();
+            }
+        }
+
+        dom.pickerScroll = null;
+    }
+
+    function syncPickerScrollbar(dom) {
+        if (!dom.picker || !dom.picker.length) {
+            return;
+        }
+
+        if (isMobile() || !$('body').hasClass('rd-bb-active')) {
+            teardownPickerScrollbar(dom);
+            return;
+        }
+
+        setupPickerScrollbar(dom);
+    }
+
+    function setupPickerScrollbar(dom) {
+        if (!dom.picker || !dom.picker.length || isMobile()) {
+            return;
+        }
+
+        var $picker = dom.picker;
+        if (!dom.pickerScroll || !dom.pickerScroll.length) {
+            if (!$picker.parent().hasClass('rd-bb-picker-scroll')) {
+                $picker.wrap('<div class="rd-bb-picker-scroll"></div>');
+            }
+            dom.pickerScroll = $picker.parent('.rd-bb-picker-scroll');
+
+            dom.scrollbar = $('<div class="rd-bb-scrollbar" role="scrollbar" aria-orientation="vertical" aria-label="' + esc(i18n.scrollFlavours || 'Scroll flavours') + '">'
+                + '<button type="button" class="rd-bb-scrollbar-chevron rd-bb-scrollbar-chevron--up" aria-label="' + esc(i18n.scrollUp || 'Scroll up') + '">'
+                + SCROLLBAR_CHEVRON_ICON + '<path d="M6 15l6-6 6 6"></path></svg>'
+                + '</button>'
+                + '<div class="rd-bb-scrollbar-track" role="presentation">'
+                + '<div class="rd-bb-scrollbar-thumb" role="presentation"></div>'
+                + '</div>'
+                + '<button type="button" class="rd-bb-scrollbar-chevron rd-bb-scrollbar-chevron--down" aria-label="' + esc(i18n.scrollDown || 'Scroll down') + '">'
+                + SCROLLBAR_CHEVRON_ICON + '<path d="M6 9l6 6 6-6"></path></svg>'
+                + '</button>'
+                + '</div>');
+            dom.scrollbarTrack = dom.scrollbar.find('.rd-bb-scrollbar-track');
+            dom.scrollbarThumb = dom.scrollbar.find('.rd-bb-scrollbar-thumb');
+            dom.scrollbarChevronUp = dom.scrollbar.find('.rd-bb-scrollbar-chevron--up');
+            dom.scrollbarChevronDown = dom.scrollbar.find('.rd-bb-scrollbar-chevron--down');
+            dom.pickerScroll.append(dom.scrollbar);
+
+            bindPickerScrollbarEvents(dom);
+        }
+
+        updatePickerScrollbar(dom);
+    }
+
+    function flashScrollbarDirection(dom, direction) {
+        if (!dom.scrollbar || !dom.scrollbar.length) {
+            return;
+        }
+
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return;
+        }
+
+        var cls = direction === 'up' ? 'rd-bb-scrollbar--flash-up' : 'rd-bb-scrollbar--flash-down';
+        if (dom.scrollbar.hasClass(cls)) {
+            return;
+        }
+
+        dom.scrollbar.removeClass('rd-bb-scrollbar--flash-up rd-bb-scrollbar--flash-down');
+        dom.scrollbar.addClass(cls);
+
+        clearTimeout(dom._scrollbarFlashTimer);
+        dom._scrollbarFlashTimer = window.setTimeout(function () {
+            dom.scrollbar.removeClass('rd-bb-scrollbar--flash-up rd-bb-scrollbar--flash-down');
+        }, 520);
+    }
+
+    function maybeFlashScrollbar(dom, direction) {
+        var now = Date.now();
+        if (dom._scrollbarLastFlashDir === direction && (now - (dom._scrollbarLastFlashAt || 0)) < 400) {
+            return;
+        }
+        dom._scrollbarLastFlashDir = direction;
+        dom._scrollbarLastFlashAt = now;
+        flashScrollbarDirection(dom, direction);
+    }
+
+    function schedulePickerScrollbarUpdate(dom) {
+        if (dom._scrollbarRaf) {
+            return;
+        }
+        dom._scrollbarRaf = window.requestAnimationFrame(function () {
+            dom._scrollbarRaf = null;
+            updatePickerScrollbar(dom);
+        });
+    }
+
+    function scrollPickerByStep(dom, direction) {
+        var el = getPickerScrollEl(dom);
+        if (!el) {
+            return;
+        }
+
+        var step = Math.max(120, Math.round(el.clientHeight * 0.35));
+        scrollPickerTo(dom, el.scrollTop + (direction === 'up' ? -step : step));
+        flashScrollbarDirection(dom, direction);
+    }
+
+    function bindPickerScrollbarEvents(dom) {
+        if (dom._scrollbarBound || !dom.scrollbar || !dom.scrollbar.length) {
+            return;
+        }
+        dom._scrollbarBound = true;
+
+        var el = getPickerScrollEl(dom);
+        if (!el) {
+            return;
+        }
+
+        dom._scrollbarLastTop = el.scrollTop;
+
+        el.addEventListener('scroll', function onPickerScroll() {
+            var lastTop = dom._scrollbarLastTop != null ? dom._scrollbarLastTop : el.scrollTop;
+            var delta = el.scrollTop - lastTop;
+            dom._scrollbarLastTop = el.scrollTop;
+
+            dom.scrollbar.addClass('is-scrolling');
+            clearTimeout(dom._scrollbarScrollTimer);
+            dom._scrollbarScrollTimer = window.setTimeout(function () {
+                dom.scrollbar.removeClass('is-scrolling');
+            }, 100);
+
+            if (Math.abs(delta) > 8) {
+                maybeFlashScrollbar(dom, delta > 0 ? 'down' : 'up');
+            }
+
+            schedulePickerScrollbarUpdate(dom);
+        }, { passive: true });
+
+        if (dom.pickerScroll && dom.pickerScroll.length) {
+            dom.pickerScroll[0].addEventListener('wheel', function (e) {
+                if (!e.target.closest || !e.target.closest('.rd-bb-scrollbar')) {
+                    return;
+                }
+                el.scrollTop += e.deltaY;
+                e.preventDefault();
+            }, { passive: false });
+        }
+
+        dom.scrollbarChevronUp.on('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if ($(this).prop('disabled')) {
+                return;
+            }
+            scrollPickerByStep(dom, 'up');
+        });
+
+        dom.scrollbarChevronDown.on('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if ($(this).prop('disabled')) {
+                return;
+            }
+            scrollPickerByStep(dom, 'down');
+        });
+
+        var dragging = false;
+        var dragStartY = 0;
+        var dragStartScroll = 0;
+
+        dom.scrollbarThumb.on('pointerdown', function (e) {
+            if (e.pointerType === 'mouse' && e.button !== 0) {
+                return;
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            dragging = true;
+            dragStartY = e.clientY;
+            dragStartScroll = el.scrollTop;
+            dom.scrollbar.addClass('is-dragging');
+            if (this.setPointerCapture) {
+                try { this.setPointerCapture(e.pointerId); } catch (err) {}
+            }
+        });
+
+        dom.scrollbarTrack.on('pointerdown', function (e) {
+            if ($(e.target).hasClass('rd-bb-scrollbar-thumb')) {
+                return;
+            }
+            if (e.pointerType === 'mouse' && e.button !== 0) {
+                return;
+            }
+            e.preventDefault();
+
+            var rail = dom.scrollbarTrack[0];
+            var thumb = dom.scrollbarThumb[0];
+            var overflow = el.scrollHeight - el.clientHeight;
+            if (overflow <= 0) {
+                return;
+            }
+
+            var rect = rail.getBoundingClientRect();
+            var y = e.clientY - rect.top;
+            var thumbH = thumb.offsetHeight;
+            var maxTop = rail.clientHeight - thumbH;
+            var targetTop = Math.max(0, Math.min(maxTop, y - (thumbH / 2)));
+            var nextScroll = maxTop > 0 ? (targetTop / maxTop) * overflow : 0;
+            scrollPickerTo(dom, nextScroll);
+            flashScrollbarDirection(dom, nextScroll > el.scrollTop ? 'down' : 'up');
+        });
+
+        $(window).on('pointermove.rdbbScrollbar', function (e) {
+            if (!dragging) {
+                return;
+            }
+
+            var rail = dom.scrollbarTrack[0];
+            var thumb = dom.scrollbarThumb[0];
+            var overflow = el.scrollHeight - el.clientHeight;
+            var maxTop = rail.clientHeight - thumb.offsetHeight;
+            var scrollRatio = maxTop > 0 ? overflow / maxTop : 0;
+            el.scrollTop = dragStartScroll + ((e.clientY - dragStartY) * scrollRatio);
+        });
+
+        $(window).on('pointerup.rdbbScrollbar pointercancel.rdbbScrollbar', function () {
+            if (!dragging) {
+                return;
+            }
+            dragging = false;
+            dom.scrollbar.removeClass('is-dragging');
+            var delta = el.scrollTop - dragStartScroll;
+            if (Math.abs(delta) > 2) {
+                flashScrollbarDirection(dom, delta > 0 ? 'down' : 'up');
+            }
+        });
+
+        $(window).on('resize.rdbbScrollbar', function () {
+            updatePickerScrollbar(dom);
+        });
+    }
+
+    function updatePickerScrollbar(dom) {
+        if (isMobile() || !dom.scrollbar || !dom.scrollbar.length) {
+            return;
+        }
+
+        var el = getPickerScrollEl(dom);
+        if (!el) {
+            return;
+        }
+
+        var overflow = el.scrollHeight - el.clientHeight;
+        var rail = dom.scrollbarTrack && dom.scrollbarTrack.length ? dom.scrollbarTrack[0] : dom.scrollbar[0];
+        var thumb = dom.scrollbarThumb[0];
+        if (!rail || !thumb) {
+            return;
+        }
+
+        if (overflow <= 8) {
+            dom.scrollbar.addClass('is-inactive');
+            thumb.style.height = '0';
+            thumb.style.top = '0';
+            if (dom.scrollbarChevronUp && dom.scrollbarChevronUp.length) {
+                dom.scrollbarChevronUp.prop('disabled', true).addClass('is-disabled');
+                dom.scrollbarChevronDown.prop('disabled', true).addClass('is-disabled');
+            }
+            return;
+        }
+
+        dom.scrollbar.removeClass('is-inactive');
+
+        var atTop = el.scrollTop <= 4;
+        var atBottom = (el.scrollTop + el.clientHeight) >= (el.scrollHeight - 4);
+        if (dom.scrollbarChevronUp && dom.scrollbarChevronUp.length) {
+            dom.scrollbarChevronUp.prop('disabled', atTop).toggleClass('is-disabled', atTop);
+            dom.scrollbarChevronDown.prop('disabled', atBottom).toggleClass('is-disabled', atBottom);
+        }
+
+        var railH = rail.clientHeight;
+        var ratio = el.clientHeight / el.scrollHeight;
+        var thumbH = Math.max(32, Math.round(ratio * railH));
+        var maxTop = railH - thumbH;
+        var top = maxTop > 0 ? (el.scrollTop / overflow) * maxTop : 0;
+
+        thumb.style.height = thumbH + 'px';
+        thumb.style.top = top + 'px';
     }
 
     function getVisiblePickerItems(state) {
@@ -1009,7 +1353,8 @@
         if (dom.title && dom.title.length) {
             var $target = dom.title.find('.rd-bb-title-price');
             if (!$target.length) {
-                $target = $('<span class="rd-bb-title-price"></span>').appendTo(dom.title);
+                var $sub = dom.title.find('.rd-bb-title-sub');
+                $target = $('<span class="rd-bb-title-price"></span>').appendTo($sub.length ? $sub : dom.title);
             }
             $target.html(html);
         }
@@ -1160,6 +1505,67 @@
         });
 
         dom.filter.html(html);
+        initFilterDragScroll(dom.filter);
+    }
+
+    // Horizontal drag-to-scroll for category chips (mouse); touch uses native pan-x.
+    function initFilterDragScroll($filter) {
+        if (!$filter || !$filter.length || !isMobile()) {
+            return;
+        }
+
+        var el = $filter[0];
+        if (el.dataset.rdbbDragScroll === '1') {
+            return;
+        }
+        el.dataset.rdbbDragScroll = '1';
+
+        var dragging = false;
+        var startX = 0;
+        var scrollLeft = 0;
+        var moved = false;
+
+        el.addEventListener('pointerdown', function (event) {
+            if (event.pointerType !== 'mouse' || event.button !== 0) {
+                return;
+            }
+
+            dragging = true;
+            moved = false;
+            startX = event.pageX;
+            scrollLeft = el.scrollLeft;
+            el.classList.add('is-dragging');
+        });
+
+        window.addEventListener('pointermove', function (event) {
+            if (!dragging) {
+                return;
+            }
+
+            var delta = event.pageX - startX;
+            if (Math.abs(delta) > 3) {
+                moved = true;
+            }
+
+            el.scrollLeft = scrollLeft - delta;
+        });
+
+        window.addEventListener('pointerup', function () {
+            if (!dragging) {
+                return;
+            }
+
+            dragging = false;
+            el.classList.remove('is-dragging');
+        });
+
+        el.addEventListener('click', function (event) {
+            if (moved) {
+                event.preventDefault();
+                event.stopPropagation();
+                moved = false;
+            }
+        }, true);
     }
 
     function setFilter(state, dom, slug) {
@@ -1378,9 +1784,13 @@
         observePickerSentinel(dom);
         bindScrollHintEvents(dom);
         if (window.requestAnimationFrame) {
-            window.requestAnimationFrame(function () { updateScrollHint(dom); });
+            window.requestAnimationFrame(function () {
+                updateScrollHint(dom);
+                updatePickerScrollbar(dom);
+            });
         } else {
             updateScrollHint(dom);
+            updatePickerScrollbar(dom);
         }
     }
 
@@ -1438,6 +1848,33 @@
     // Let WooCommerce/the theme refresh the mini-cart + count after a change.
     function refreshFragments() {
         $(document.body).trigger('wc_fragment_refresh');
+    }
+
+    function syncBuilderCartCount(dom) {
+        if (!dom.cartBtn || !dom.cartBtn.length) {
+            return;
+        }
+
+        var $count = dom.cartBtn.find('.rd-bb-cart-btn__count');
+
+        function applyCount(count) {
+            count = parseInt(count, 10) || 0;
+            if (count > 0) {
+                $count.text(count).prop('hidden', false).attr('aria-hidden', 'false');
+            } else {
+                $count.prop('hidden', true).attr('aria-hidden', 'true');
+            }
+        }
+
+        applyCount(dom.cartBtn.attr('data-initial-count') || dom.cartBtn.data('initial-count') || 0);
+
+        if (typeof window.fetchCartData === 'function') {
+            window.fetchCartData().then(function (data) {
+                if (data && data.cart_count !== undefined) {
+                    applyCount(data.cart_count);
+                }
+            });
+        }
     }
 
     // First-party usage tracking (no third party). Fire-and-forget: a failed or
@@ -1765,6 +2202,10 @@
             if (willOpen) { trackEvent('open'); }
         });
 
+        $(document.body).on('added_to_cart removed_from_cart wc_fragments_refreshed', function () {
+            syncBuilderCartCount(dom);
+        });
+
         dom.clear.on('click', function () {
             clearBox(state, dom);
         });
@@ -1844,6 +2285,14 @@
             var label = open ? $(this).data('label-close') : $(this).data('label-open');
             if (label) {
                 $(this).attr('aria-label', label);
+            }
+            var textLabel = open ? $(this).data('label-text-close') : $(this).data('label-text-open');
+            var $text = $(this).find('.rd-bb-filter-toggle-label');
+            if (textLabel && $text.length) {
+                $text.text(textLabel);
+            }
+            if (open && isMobile()) {
+                initFilterDragScroll($controls.find('.rd-bb-filter'));
             }
             syncToolbarExpanded(dom);
         });
@@ -2081,6 +2530,14 @@
         dom.controls.removeClass('rd-bb-filter-open rd-bb-search-open');
         if (dom.filterToggle && dom.filterToggle.length) {
             dom.filterToggle.attr('aria-expanded', 'false');
+            var openLabel = dom.filterToggle.data('label-open');
+            var openText = dom.filterToggle.data('label-text-open');
+            if (openLabel) {
+                dom.filterToggle.attr('aria-label', openLabel);
+            }
+            if (openText) {
+                dom.filterToggle.find('.rd-bb-filter-toggle-label').text(openText);
+            }
         }
         dom.controls.find('.rd-bb-search-toggle').attr('aria-expanded', 'false');
         $('#rd-bb-help-panel').prop('hidden', true);
@@ -2095,6 +2552,9 @@
         syncSortPlacement(dom);
         dom.toggle.attr('aria-pressed', on ? 'true' : 'false');
         dom.toggle.find('.rd-bb-toggle-label').text(on ? (i18n.close || i18n.viewBox || 'Close Box Builder Mode') : (i18n.buildYourOwn || 'Build Your Own Box'));
+        if (on) {
+            syncBuilderCartCount(dom);
+        }
         dom.root.prop('hidden', !on);
         dom.summary.prop('hidden', on);
         dom.picker.prop('hidden', !on);
@@ -2114,10 +2574,14 @@
         // scroll hint after layout settles.
         if (on && window.requestAnimationFrame) {
             window.requestAnimationFrame(function () {
+                syncPickerScrollbar(dom);
                 rebuildPickerAutoLoad(state, dom);
                 bindScrollHintEvents(dom);
                 updateScrollHint(dom);
+                updatePickerScrollbar(dom);
             });
+        } else if (!on) {
+            teardownPickerScrollbar(dom);
         }
 
         // Hiding the hero/header shifts the page up; scroll to the topmost part
@@ -2284,6 +2748,7 @@
             var off = isMobile();
             pickerSortable.option('disabled', off);
             boxSortable.option('disabled', off);
+            syncPickerScrollbar(dom);
             rebuildPickerAutoLoad(state, dom);
             bindScrollHintEvents(dom);
             updateScrollHint(dom);

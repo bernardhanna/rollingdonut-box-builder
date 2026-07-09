@@ -52,9 +52,77 @@ body.rd-bb-active .rd-bb-toggle-wrap {
     position: sticky;
     top: 0;
     z-index: 30;
-    margin: 0 0 1rem;
-    padding: 0.5rem 0;
+    margin: 0 0 0.65rem;
+    padding: 0.25rem 0 0;
     background: #fff;
+}
+
+.rd-bb-toggle-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+/* Cart shortcut sits beside the close control while builder mode is open. */
+.rd-bb-cart-btn {
+    display: none;
+    position: relative;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    min-width: 54px;
+    height: 54px;
+    border: 4px solid #000;
+    border-radius: 72px;
+    background: #fff;
+    color: #000;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.rd-bb-cart-btn:hover,
+.rd-bb-cart-btn:focus-visible {
+    background: #000;
+    color: #ffed56;
+    border-color: #000;
+}
+
+.rd-bb-cart-btn__icon {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+}
+
+.rd-bb-cart-btn__count {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border: 2px solid #000;
+    border-radius: 999px;
+    background: #e3645f;
+    color: #000;
+    font-family: Edmondsans, sans-serif;
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+body.rd-bb-active .rd-bb-cart-btn {
+    display: inline-flex;
+}
+
+body.rd-bb-active .rd-bb-toggle {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
 }
 
 .rd-bb-toggle {
@@ -118,6 +186,17 @@ body.rd-bb-active .rd-bb-toggle-wrap {
         font-size: 0.875rem;
         line-height: 1.2;
     }
+
+    .rd-bb-cart-btn {
+        width: 48px;
+        min-width: 48px;
+        height: 48px;
+        border-width: 3px;
+    }
+
+    body.rd-bb-active .rd-bb-toggle[aria-pressed="true"] {
+        height: 44px;
+    }
 }
 
 .rd-bb-toggle-icon {
@@ -169,8 +248,25 @@ body.rd-bb-active .rd-box-count-badge {
     display: none;
 }
 
+/* Collapse the title row entirely while building — avoids empty margin above
+ * the close button (theme uses mt-5 on .product-summary-header). */
+body.rd-bb-active .product-summary-header {
+    display: none;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Keep the side cart above the builder sheet and picker while building. */
+body.rd-bb-active .rd-side-cart {
+    z-index: 100100;
+}
+
 /* Builder title (top-left) replaces the hidden hero heading while building. */
 .rd-bb-title {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
     font-size: 1.5rem;
     font-weight: 700;
     line-height: 1.15;
@@ -178,14 +274,27 @@ body.rd-bb-active .rd-box-count-badge {
     margin-bottom: 0.85rem;
 }
 
+.rd-bb-title-name {
+    display: block;
+}
+
+.rd-bb-title-sub {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.6rem;
+    font-size: 0.82em;
+    line-height: 1.2;
+}
+
 .rd-bb-title-suffix {
     font-weight: 400;
     color: var(--rd-bb-muted);
 }
 
-/* Live box total, shown beside the builder title. */
+/* Live box total, shown beside the suffix on the line below the title. */
 .rd-bb-title-price {
-    margin-left: 0.6rem;
+    margin-left: 0;
     font-weight: 700;
     white-space: nowrap;
     color: var(--rd-bb-bg);
@@ -953,7 +1062,13 @@ body.rd-bb-dragging .rd-bb-slot--drop-target::after {
 /* ---------------------------------------------------------------- the picker */
 
 /* Picker lives inside the gallery column; fade gallery out when active. */
-.rd-bb-active .woocommerce-product-gallery > *:not(.rd-bb-picker) {
+.rd-bb-active .woocommerce-product-gallery > *:not(.rd-bb-picker-scroll):not(.rd-bb-picker) {
+    display: none !important;
+}
+
+/* Custom scrollbar is builder-only — never show in default product view. */
+body:not(.rd-bb-active) .rd-bb-picker-scroll,
+body:not(.rd-bb-active) .rd-bb-scrollbar {
     display: none !important;
 }
 
@@ -1038,14 +1153,10 @@ body.rd-bb-active .product.type-product {
          * pushes its right edge past the viewport and clips the box (e.g. ~1628px
          * wide screens). Cancel the offset here. */
         left: 0;
-        /* Divider between the flavour options (left) and your actual box (right).
-         * The line is the column's left border, so it spans the box column's
-         * natural height. */
-        border-left: 2px solid #000;
-        /* The box column scrolls with the page (no internal scroll / pinning) so
-         * the close button and Add to Basket never float over the box list. The
-         * flavour picker on the left keeps its own sticky scroll. */
-        padding: 1.5rem 0.5rem 1.5rem 2rem;
+        border-left: none;
+        /* The box column scrolls with the page so the close button and box list
+         * stay in natural document order. The flavour picker keeps its own scroll. */
+        padding: 0.35rem 0.5rem 1.5rem 2rem;
     }
 
     /* Let the close control scroll with the box list instead of pinning to the
@@ -1053,12 +1164,13 @@ body.rd-bb-active .product.type-product {
     body.rd-bb-active .rd-bb-toggle-wrap {
         position: static;
         padding: 0;
+        margin: 0 0 0.65rem;
         background: transparent;
     }
 
-    /* Give the picker side breathing room from the divider. */
+    /* Give the picker side breathing room from the divider scrollbar. */
     body.rd-bb-active .product.type-product > .woocommerce-product-gallery {
-        padding-right: 0.5rem;
+        padding-right: 0;
     }
 
     /* Box, close button and add-to-basket all span the column's full width so
@@ -1096,24 +1208,149 @@ body.rd-bb-active .product.type-product {
         margin: 0 !important;
     }
 
+    .rd-bb-active .rd-bb-picker-scroll {
+        display: flex;
+        align-items: stretch;
+        width: 100%;
+        min-width: 0;
+        gap: 0.85rem;
+    }
+
     .rd-bb-active .rd-bb-picker {
         position: sticky;
         top: 24px;
+        flex: 1 1 auto;
+        min-width: 0;
         max-height: calc(100vh - 48px);
         overflow-y: auto;
         overscroll-behavior: contain;
-        padding-right: 0.4rem;
+        padding-right: 0.25rem;
         padding-bottom: 2.5rem;
         scroll-padding-bottom: 1.5rem;
+        scrollbar-width: none;
     }
 
-    .rd-bb-picker::-webkit-scrollbar {
-        width: 8px;
+    .rd-bb-active .rd-bb-picker::-webkit-scrollbar {
+        display: none;
     }
 
-    .rd-bb-picker::-webkit-scrollbar-thumb {
-        background: rgba(0, 0, 0, 0.25);
-        border-radius: 8px;
+    /* Custom divider scrollbar: transparent rail, black border, yellow thumb. */
+    .rd-bb-scrollbar {
+        --rd-bb-scrollbar-h: calc((100vh - 48px) / 3);
+        position: sticky;
+        top: calc(24px + (100vh - 48px) / 3);
+        display: flex;
+        flex-direction: column;
+        flex: 0 0 18px;
+        align-self: flex-start;
+        width: 18px;
+        height: var(--rd-bb-scrollbar-h);
+        min-height: 7rem;
+        box-sizing: border-box;
+        background: transparent;
+        border: 2px solid #000;
+        touch-action: none;
+        user-select: none;
+        z-index: 2;
+        overflow: hidden;
+    }
+
+    .rd-bb-scrollbar-chevron {
+        flex: 0 0 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 16px;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: #fff;
+        color: #000;
+        cursor: pointer;
+        line-height: 0;
+    }
+
+    .rd-bb-scrollbar-chevron--up {
+        border-bottom: 2px solid #000;
+    }
+
+    .rd-bb-scrollbar-chevron--down {
+        border-top: 2px solid #000;
+    }
+
+    .rd-bb-scrollbar-chevron.is-disabled,
+    .rd-bb-scrollbar-chevron:disabled {
+        opacity: 0.35;
+        cursor: default;
+        pointer-events: none;
+    }
+
+    .rd-bb-scrollbar-track {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 2rem;
+        background: transparent;
+    }
+
+    .rd-bb-scrollbar.is-inactive .rd-bb-scrollbar-thumb {
+        display: none;
+    }
+
+    .rd-bb-scrollbar-thumb {
+        position: absolute;
+        top: 0;
+        left: 1px;
+        right: 1px;
+        min-height: 2rem;
+        background: var(--rd-bb-accent);
+        border: 2px solid #000;
+        box-sizing: border-box;
+        cursor: grab;
+        transition: none;
+    }
+
+    .rd-bb-scrollbar:not(.is-scrolling):not(.is-dragging) .rd-bb-scrollbar-thumb {
+        transition: top 0.14s ease-out, height 0.14s ease-out;
+    }
+
+    .rd-bb-scrollbar.is-scrolling .rd-bb-scrollbar-thumb,
+    .rd-bb-scrollbar.is-dragging .rd-bb-scrollbar-thumb {
+        transition: none;
+    }
+
+    .rd-bb-scrollbar.is-dragging .rd-bb-scrollbar-thumb {
+        cursor: grabbing;
+    }
+
+    .rd-bb-scrollbar--flash-up .rd-bb-scrollbar-chevron--up,
+    .rd-bb-scrollbar--flash-down .rd-bb-scrollbar-chevron--down {
+        animation: rd-bb-scrollbar-chevron-flash 0.5s ease;
+    }
+
+    @keyframes rd-bb-scrollbar-chevron-flash {
+        0%, 100% {
+            background: #fff;
+            color: #000;
+        }
+
+        40%, 70% {
+            background: var(--rd-bb-accent);
+            color: #000;
+            box-shadow: inset 0 0 0 1px #000;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .rd-bb-scrollbar-thumb {
+            transition: none;
+        }
+
+        .rd-bb-scrollbar--flash-up .rd-bb-scrollbar-chevron--up,
+        .rd-bb-scrollbar--flash-down .rd-bb-scrollbar-chevron--down {
+            animation: none;
+            background: var(--rd-bb-accent);
+        }
     }
 }
 
@@ -1186,9 +1423,62 @@ body.rd-bb-active .product.type-product {
 }
 
 /* In builder mode, keep filter chips, sort and search collapsed until the
- * customer taps Display Filters — flavour grid stays the focus first. */
+ * customer taps the filter control — flavour grid stays the focus first. */
 body.rd-bb-active .rd-bb-filter-toggle {
     display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    width: auto;
+    height: auto;
+    min-height: 2.5rem;
+    padding: 0.55rem 1rem;
+    border: 2px solid #000;
+    border-radius: 999px;
+    background: #ffed56;
+    color: #000;
+    font-family: Edmondsans, sans-serif;
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1.1;
+    box-shadow: 0 2px 0 #000;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+body.rd-bb-active .rd-bb-filter-toggle:hover,
+body.rd-bb-active .rd-bb-filter-toggle:focus-visible {
+    background: #000;
+    color: #ffed56;
+}
+
+body.rd-bb-active .rd-bb-filter-toggle[aria-expanded="true"] {
+    background: #fff;
+    color: #000;
+    box-shadow: inset 0 0 0 1px #000;
+}
+
+body.rd-bb-active .rd-bb-filter-toggle-label {
+    display: inline;
+    white-space: nowrap;
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+body.rd-bb-active .rd-bb-filter-toggle-chevron {
+    display: inline-block;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    margin-top: -0.2rem;
+    flex: 0 0 auto;
+    transition: transform 0.15s ease, margin-top 0.15s ease;
+}
+
+body.rd-bb-active .rd-bb-filter-toggle[aria-expanded="true"] .rd-bb-filter-toggle-chevron {
+    transform: rotate(-135deg);
+    margin-top: 0.15rem;
 }
 
 body.rd-bb-active .rd-bb-controls .rd-bb-sort-wrap,
@@ -1213,35 +1503,37 @@ body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
     display: flex;
 }
 
-/* One row: category chips left; search + sort grouped on the right. */
-body.rd-bb-active .rd-bb-controls.rd-bb-filter-open {
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 0.5rem;
-}
+/* Desktop: one row — category chips left; search + sort grouped on the right. */
+@media (min-width: 1024px) {
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open {
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
 
-body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
-    order: 1;
-    flex: 1 1 auto;
-    min-width: 0;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-}
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
+        order: 1;
+        flex: 1 1 auto;
+        min-width: 0;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
 
-body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter::-webkit-scrollbar {
-    display: none;
-}
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter::-webkit-scrollbar {
+        display: none;
+    }
 
-body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-chip {
-    flex-shrink: 0;
-}
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-chip {
+        flex-shrink: 0;
+    }
 
-body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-sort-wrap {
-    order: 3;
-    flex: 0 0 auto;
-    margin-left: 0;
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-sort-wrap {
+        order: 3;
+        flex: 0 0 auto;
+        margin-left: 0;
+    }
 }
 
 body.rd-bb-active .rd-bb-search-wrap {
@@ -1573,12 +1865,17 @@ body.rd-bb-active .rd-bb-search-wrap {
         white-space: nowrap;
     }
 
-    /* Title row: product name + price with Display Filters beside the title. */
+    .rd-bb-picker-top .rd-bb-title {
+        display: none;
+    }
+
     .rd-bb-picker-title-row {
         display: flex;
         align-items: center;
+        justify-content: flex-end;
         gap: 0.35rem 0.5rem;
-        flex: 1 1 0;
+        flex: 0 0 auto;
+        width: 100%;
         min-width: 0;
     }
 
@@ -1588,19 +1885,6 @@ body.rd-bb-active .rd-bb-search-wrap {
         align-items: center;
         gap: 0.35rem 0.5rem;
         margin-bottom: 0;
-    }
-
-    .rd-bb-picker-top .rd-bb-title {
-        flex: 1 1 0;
-        min-width: 0;
-        margin: 0;
-        padding: 0;
-        font-size: 0.82rem;
-        font-weight: 700;
-        line-height: 1.2;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 
     .rd-bb-picker-title-row .rd-bb-filter-toggle,
@@ -1613,8 +1897,11 @@ body.rd-bb-active .rd-bb-search-wrap {
         font-weight: 400;
     }
 
+    .rd-bb-picker-top .rd-bb-title-sub {
+        font-size: 0.8em;
+    }
+
     .rd-bb-picker-top .rd-bb-title-price {
-        margin-left: 0.35rem;
         color: #000;
     }
 
@@ -1643,23 +1930,24 @@ body.rd-bb-active .rd-bb-search-wrap {
     }
 
     body.rd-bb-active .rd-bb-picker-top .rd-bb-controls.rd-bb-filter-open {
-        flex-wrap: nowrap;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "filters filters"
+            "search sort";
         align-items: center;
-        gap: 0.35rem;
-        overflow: hidden;
+        gap: 0.5rem 0.75rem;
+        overflow: visible;
         width: 100%;
     }
 
-    /* Sort is relocated into the controls row by JS (after search). */
-    .rd-bb-controls .rd-bb-sort-wrap {
-        order: 3;
-        margin: 0;
-        flex: 0 0 auto;
-    }
-
+    /* Row 1: swipeable category chips. */
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
-        order: 1;
-        flex: 1 1 auto;
+        grid-area: filters;
+        order: unset;
+        flex: unset;
+        width: 100%;
+        max-width: 100%;
         min-width: 0;
         flex-wrap: nowrap;
         overflow-x: auto;
@@ -1668,6 +1956,13 @@ body.rd-bb-active .rd-bb-search-wrap {
         scroll-snap-type: x proximity;
         scrollbar-width: none;
         touch-action: pan-x;
+        cursor: grab;
+        padding-bottom: 0.15rem;
+    }
+
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter.is-dragging {
+        cursor: grabbing;
+        user-select: none;
     }
 
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter::-webkit-scrollbar {
@@ -1676,43 +1971,36 @@ body.rd-bb-active .rd-bb-search-wrap {
 
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-chip {
         scroll-snap-align: start;
+        flex-shrink: 0;
     }
 
+    /* Row 2: search + sort below the chips. */
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-search-toggle {
-        display: inline-flex;
-        order: 2;
-        flex: 0 0 auto;
-        width: 2.2rem;
-        height: 2.2rem;
-        margin-left: 0;
+        display: none !important;
     }
 
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-search-wrap {
-        display: none;
-        order: 2;
-        flex: 0 0 auto;
+        grid-area: search;
+        display: flex !important;
+        order: unset;
+        flex: 1 1 auto;
         width: auto;
         min-width: 0;
         margin-left: 0;
     }
 
-    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open.rd-bb-search-open .rd-bb-search-toggle {
-        display: none;
-    }
-
-    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open.rd-bb-search-open .rd-bb-search-wrap {
-        display: flex;
-    }
-
-    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open.rd-bb-search-open .rd-bb-search {
-        width: 6.5rem;
-        max-width: 28vw;
-        padding: 0.3rem 1.6rem 0.3rem 0.55rem;
-        font-size: 0.72rem;
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-search {
+        width: 100%;
+        max-width: none;
+        padding: 0.45rem 2rem 0.45rem 0.7rem;
+        font-size: 0.85rem;
     }
 
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-sort-wrap {
-        order: 3;
+        grid-area: sort;
+        order: unset;
+        flex: 0 0 auto;
+        margin-left: 0;
     }
 
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-sort-label {
@@ -1721,6 +2009,19 @@ body.rd-bb-active .rd-bb-search-wrap {
 
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-sort-icon {
         display: none;
+    }
+
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open.rd-bb-search-open .rd-bb-search-toggle {
+        display: none !important;
+    }
+
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open.rd-bb-search-open .rd-bb-search-wrap {
+        display: flex !important;
+    }
+
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open.rd-bb-search-open .rd-bb-search {
+        width: 100%;
+        max-width: none;
     }
 
     /* Non-builder mobile: icon toggles search below chips. */
@@ -2157,6 +2458,24 @@ body.rd-bb-active .rd-bb-search-wrap {
     transform: translateX(-50%) translateY(0);
 }
 
+@media (max-width: 1023px) {
+    /* left: 50% + translateX can drift on mobile when ancestors use transforms;
+     * pin with inset + auto margins for reliable horizontal centering. */
+    .rd-bb-toast {
+        left: 0;
+        right: 0;
+        width: max-content;
+        max-width: min(22rem, calc(100vw - 2rem));
+        margin-inline: auto;
+        transform: translateY(12px);
+        text-align: center;
+    }
+
+    .rd-bb-toast.is-visible {
+        transform: translateY(0);
+    }
+}
+
 .rd-bb-toast--success {
     display: inline-flex;
     align-items: center;
@@ -2194,6 +2513,16 @@ body.rd-bb-active .rd-bb-search-wrap {
 }
 
 @media (max-width: 1023px) {
+    /* Custom divider scrollbar is desktop-only. */
+    .rd-bb-scrollbar {
+        display: none !important;
+    }
+
+    .rd-bb-active .rd-bb-picker-scroll {
+        display: block;
+        gap: 0;
+    }
+
     /* Below the desktop two-column breakpoint, stack the builder into a single
      * column: full-width flavour picker on top, the box below. This avoids the
      * theme's cramped 49%/49% split (which left only ~3 tiny picker columns and
@@ -2218,9 +2547,15 @@ body.rd-bb-active .rd-bb-search-wrap {
         float: none !important;
     }
 
-    /* Trim the big gap above the close button while building on mobile. */
+    /* Trim the gap above the close button while building on mobile. */
     body.rd-bb-active .product.type-product > .summary.entry-summary {
-        padding-top: 0.5rem !important;
+        padding-top: 0.25rem !important;
+    }
+
+    body.rd-bb-active .rd-bb-toggle-wrap {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        padding-top: 0.15rem;
     }
 
     /* Stack Add/Buy CTAs — side-by-side labels clip in the narrow builder column. */
@@ -2623,7 +2958,7 @@ body.rd-bb-active .rd-bb-search-wrap {
     }
 
     .rd-bb-active .rd-bb-picker .rd-bb-picker-top .rd-bb-title {
-        display: block;
+        display: none;
     }
 
     .rd-bb-active .rd-bb-picker .rd-bb-picker-headrow {
@@ -2811,9 +3146,14 @@ body.rd-bb-active .rd-bb-search-wrap {
         font-size: 0.68rem;
         font-weight: 700;
         line-height: 1.2;
-        color: var(--rd-bb-fg);
+        color: #000;
         text-transform: uppercase;
         letter-spacing: 0.03em;
+    }
+
+    .rd-bb-card--blocked .rd-bb-card-in-box-label,
+    .rd-bb-card--in-box .rd-bb-card-in-box-label {
+        color: #000;
     }
 
     .rd-bb-card-controls {
