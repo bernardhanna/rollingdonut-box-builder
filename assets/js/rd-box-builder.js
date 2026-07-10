@@ -311,13 +311,24 @@
         // compact toolbar breakpoint (controls row on phones/tablets, header on desktop).
         if (window.matchMedia) {
             var sortMq = window.matchMedia('(max-width: 1023px)');
-            var onSortMq = function () { syncSortPlacement(dom); };
+            var onSortMq = function () {
+                syncSortPlacement(dom);
+                syncToggleLabel(dom);
+            };
             if (sortMq.addEventListener) {
                 sortMq.addEventListener('change', onSortMq);
             } else if (sortMq.addListener) {
                 sortMq.addListener(onSortMq);
             }
         }
+
+        var toggleLabelResizeTimer;
+        $(window).on('resize.rdbbToggleLabel', function () {
+            window.clearTimeout(toggleLabelResizeTimer);
+            toggleLabelResizeTimer = window.setTimeout(function () {
+                syncToggleLabel(dom);
+            }, 150);
+        });
         // Group the CTA buttons before initCart so the in-cart stepper (inserted
         // right after the add button) lands inside the same row wrapper.
         wrapCtaButtons(dom);
@@ -1510,7 +1521,7 @@
 
     // Horizontal drag-to-scroll for category chips (mouse); touch uses native pan-x.
     function initFilterDragScroll($filter) {
-        if (!$filter || !$filter.length || !isMobile()) {
+        if (!$filter || !$filter.length) {
             return;
         }
 
@@ -1526,7 +1537,7 @@
         var moved = false;
 
         el.addEventListener('pointerdown', function (event) {
-            if (event.pointerType !== 'mouse' || event.button !== 0) {
+            if (event.pointerType === 'touch' || event.button !== 0) {
                 return;
             }
 
@@ -2291,7 +2302,8 @@
             if (textLabel && $text.length) {
                 $text.text(textLabel);
             }
-            if (open && isMobile()) {
+            if (open) {
+                syncSortPlacement(dom);
                 initFilterDragScroll($controls.find('.rd-bb-filter'));
             }
             syncToolbarExpanded(dom);
@@ -2545,13 +2557,34 @@
         syncToolbarExpanded(dom);
     }
 
+    function syncToggleLabel(dom) {
+        var active = dom.toggle.attr('aria-pressed') === 'true';
+        var label;
+        var ariaLabel;
+
+        if (!active) {
+            label = i18n.buildYourOwn || 'Build Your Own Box';
+            ariaLabel = label;
+        } else {
+            ariaLabel = i18n.close || 'Close Box Builder Mode';
+            if (window.innerWidth < 1367) {
+                label = i18n.closeShort || 'Close builder';
+            } else {
+                label = i18n.close || i18n.viewBox || 'Close Box Builder Mode';
+            }
+        }
+
+        dom.toggle.find('.rd-bb-toggle-label').text(label);
+        dom.toggle.attr('aria-label', ariaLabel);
+    }
+
     function setActive(state, dom, on) {
         showTransitionOverlay();
         state.active = on;
         $('body').toggleClass('rd-bb-active', on);
         syncSortPlacement(dom);
         dom.toggle.attr('aria-pressed', on ? 'true' : 'false');
-        dom.toggle.find('.rd-bb-toggle-label').text(on ? (i18n.close || i18n.viewBox || 'Close Box Builder Mode') : (i18n.buildYourOwn || 'Build Your Own Box'));
+        syncToggleLabel(dom);
         if (on) {
             syncBuilderCartCount(dom);
         }

@@ -57,6 +57,16 @@ body.rd-bb-active .rd-bb-toggle-wrap {
     background: #fff;
 }
 
+body.admin-bar.rd-bb-active .rd-bb-toggle-wrap {
+    top: 32px;
+}
+
+@media screen and (max-width: 782px) {
+    body.admin-bar.rd-bb-active .rd-bb-toggle-wrap {
+        top: 46px;
+    }
+}
+
 .rd-bb-toggle-row {
     display: flex;
     align-items: stretch;
@@ -134,34 +144,41 @@ body.rd-bb-active .rd-bb-toggle {
     max-width: 688px;
     height: 54px;
     padding: 16px 32px;
-    border: 4px solid #000;
+    border: 4px solid #000 !important;
     border-radius: 72px;
-    background: #ffed56;
-    color: #000;
+    background: #ffed56 !important;
+    background-color: #ffed56 !important;
+    color: #000 !important;
     font-family: Edmondsans, sans-serif;
     font-weight: 700;
     font-size: 24px;
     line-height: 26px;
     letter-spacing: 0;
     cursor: pointer;
-    box-shadow: none;
+    box-shadow: none !important;
     transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .rd-bb-toggle:hover {
-    background: #000;
-    color: #ffed56;
-    border-color: #000;
+    background: #000 !important;
+    background-color: #000 !important;
+    color: #ffed56 !important;
+    border-color: #000 !important;
 }
 
 .rd-bb-toggle[aria-pressed="true"] {
-    background: #ffed56;
-    color: #000;
-    border-color: #000;
-    font-size: 1.125rem;
-    line-height: 1.25;
+    background: #ffed56 !important;
+    background-color: #ffed56 !important;
+    color: #000 !important;
+    border-color: #000 !important;
+    font-size: 1rem;
+    line-height: 1.2;
     height: 48px;
     padding: 12px 20px;
+}
+
+.rd-bb-toggle[aria-pressed="true"] .rd-bb-toggle-label {
+    white-space: nowrap;
 }
 
 .rd-bb-toggle[aria-pressed="true"]:hover {
@@ -170,7 +187,7 @@ body.rd-bb-active .rd-bb-toggle {
     border-color: #000;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1366px) {
     .rd-bb-toggle {
         max-width: none;
         height: 48px;
@@ -196,6 +213,39 @@ body.rd-bb-active .rd-bb-toggle {
 
     body.rd-bb-active .rd-bb-toggle[aria-pressed="true"] {
         height: 44px;
+    }
+
+    body.rd-bb-active .rd-bb-toggle[aria-pressed="true"] .rd-bb-toggle-label {
+        white-space: nowrap;
+    }
+
+    body.rd-bb-active .rd-bb-toggle[aria-pressed="true"] {
+        justify-content: center;
+        gap: 0.4rem;
+        padding-inline: 12px;
+        font-size: 0.8125rem;
+    }
+}
+
+@media (max-width: 380px) {
+    body.rd-bb-active .rd-bb-toggle[aria-pressed="true"] {
+        flex: 0 0 48px;
+        width: 48px;
+        min-width: 48px;
+        max-width: 48px;
+        padding: 0;
+    }
+
+    body.rd-bb-active .rd-bb-toggle[aria-pressed="true"] .rd-bb-toggle-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
     }
 }
 
@@ -1176,7 +1226,13 @@ body.rd-bb-active .product.type-product {
     /* Box, close button and add-to-basket all span the column's full width so
      * they line up as one consistent stack. */
     body.rd-bb-active .rd-bb {
-        max-width: none;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    body.rd-bb-active .product.type-product > .woocommerce-product-gallery {
+        min-width: 0;
     }
 
     /* "Add Box to Cart" and "Buy Now" share one row on desktop, side by side with
@@ -1501,10 +1557,39 @@ body.rd-bb-active .rd-bb-filter {
 
 body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
     display: flex;
+    flex-wrap: nowrap !important;
+    align-items: center;
+    min-width: 0;
+    min-height: 2.35rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    touch-action: pan-x;
+    cursor: grab;
+    padding-bottom: 0.15rem;
 }
 
-/* Desktop: one row — category chips left; search + sort grouped on the right. */
-@media (min-width: 1024px) {
+body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-chip {
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    white-space: nowrap;
+    scroll-snap-align: start;
+}
+
+body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter.is-dragging {
+    cursor: grabbing;
+    user-select: none;
+}
+
+body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter::-webkit-scrollbar {
+    display: none;
+}
+
+/* Wide desktop: one row — category chips left; search + sort grouped on the right. */
+@media (min-width: 1367px) {
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open {
         flex-wrap: nowrap;
         align-items: center;
@@ -1514,19 +1599,6 @@ body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
         order: 1;
         flex: 1 1 auto;
-        min-width: 0;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-    }
-
-    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter::-webkit-scrollbar {
-        display: none;
-    }
-
-    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-chip {
-        flex-shrink: 0;
     }
 
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-sort-wrap {
@@ -1540,7 +1612,7 @@ body.rd-bb-active .rd-bb-search-wrap {
     display: none;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1367px) {
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-search-wrap {
         order: 2;
         display: flex;
@@ -1556,16 +1628,129 @@ body.rd-bb-active .rd-bb-search-wrap {
     }
 }
 
+/* Laptop / tablet: filters on their own swipeable row so search does not clip chips. */
+@media (min-width: 1024px) and (max-width: 1366px) {
+    /* Keep both columns inside the viewport — the picker must shrink instead of
+     * pushing the My Box column off the right edge (common around ~1232px when
+     * filters/search are expanded). */
+    body.rd-bb-active .product.type-product {
+        justify-content: flex-start !important;
+        gap: clamp(0.5rem, 1.25vw, 1rem);
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: clip;
+    }
+
+    body.rd-bb-active .product.type-product > .woocommerce-product-gallery {
+        flex: 1 1 0%;
+        width: auto;
+        min-width: 0;
+        max-width: none;
+    }
+
+    body.rd-bb-active .product.type-product > .summary.entry-summary {
+        flex: 0 0 clamp(280px, 30vw, 360px);
+        width: clamp(280px, 30vw, 360px);
+        max-width: clamp(280px, 30vw, 360px);
+        padding: 0.35rem 0.5rem 1.5rem 0.75rem;
+        box-sizing: border-box;
+        overflow-x: clip;
+    }
+
+    body.rd-bb-active .product.type-product:has(.rd-bb-filter-open) > .summary.entry-summary {
+        flex-basis: clamp(260px, 27vw, 330px);
+        width: clamp(260px, 27vw, 330px);
+        max-width: clamp(260px, 27vw, 330px);
+    }
+
+    body.rd-bb-active .rd-bb-picker,
+    body.rd-bb-active .rd-bb-picker-scroll,
+    body.rd-bb-active .rd-bb-picker-top {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .rd-bb-picker-grid {
+        grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+    }
+
+    body.rd-bb-active .rd-bb-picker-top .rd-bb-controls.rd-bb-filter-open {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "filters filters"
+            "search sort";
+        align-items: center;
+        gap: 0.5rem 0.75rem;
+        overflow: hidden;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
+        grid-area: filters;
+        order: unset;
+        flex: unset;
+        width: 100%;
+        max-width: 100%;
+        min-height: 2.35rem;
+        align-items: center;
+    }
+
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-chip {
+        padding: 0.3rem 0.7rem;
+        font-size: 0.75rem;
+    }
+
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-search-wrap {
+        grid-area: search;
+        display: flex !important;
+        order: unset;
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
+        margin-left: 0;
+    }
+
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-search {
+        width: 100%;
+        max-width: none;
+    }
+
+    body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-sort-wrap {
+        grid-area: sort;
+        order: unset;
+        flex: 0 0 auto;
+        margin-left: 0;
+    }
+}
+
 @media (min-width: 1024px) {
+    body.rd-bb-active .rd-bb-picker-top {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
     body.rd-bb-active .rd-bb-picker-title-row {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 0.85rem;
+        justify-content: flex-end;
+        gap: 0.5rem 0.65rem;
+        width: 100%;
+        margin-bottom: 0;
     }
 
     body.rd-bb-active .rd-bb-picker-title-row .rd-bb-title {
-        flex: 1 1 auto;
+        flex: 1 1 100%;
+        width: 100%;
         min-width: 0;
         margin: 0;
         padding: 0;
@@ -1575,6 +1760,26 @@ body.rd-bb-active .rd-bb-search-wrap {
     body.rd-bb-active .rd-bb-picker-title-row .rd-bb-help {
         flex: 0 0 auto;
         margin-left: 0;
+    }
+
+    body.rd-bb-active .rd-bb-picker-top .rd-bb-controls {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+}
+
+@media (min-width: 1367px) {
+    body.rd-bb-active .rd-bb-picker-title-row {
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 0.85rem;
+    }
+
+    body.rd-bb-active .rd-bb-picker-title-row .rd-bb-title {
+        flex: 1 1 auto;
+        width: auto;
     }
 }
 
@@ -1588,6 +1793,10 @@ body.rd-bb-active .rd-bb-search-wrap {
     flex-wrap: wrap;
     gap: 0.4rem;
     flex: 1 1 auto;
+}
+
+body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
+    flex-wrap: nowrap !important;
 }
 
 .rd-bb-search-wrap {
@@ -1871,20 +2080,38 @@ body.rd-bb-active .rd-bb-search-wrap {
 
     .rd-bb-picker-title-row {
         display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
         align-items: center;
         justify-content: flex-end;
-        gap: 0.35rem 0.5rem;
+        gap: 0.5rem;
         flex: 0 0 auto;
         width: 100%;
         min-width: 0;
     }
 
+    body.rd-bb-active .rd-bb-picker-top {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+        margin-bottom: 0;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
     .rd-bb-picker-top {
         display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 0.35rem 0.5rem;
+        flex-direction: column;
+        align-items: stretch;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
         margin-bottom: 0;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
     }
 
     .rd-bb-picker-title-row .rd-bb-filter-toggle,
@@ -1907,19 +2134,29 @@ body.rd-bb-active .rd-bb-search-wrap {
 
     .rd-bb-picker-top .rd-bb-controls {
         flex: 0 0 auto;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 0.35rem;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        gap: 0.5rem;
         margin-bottom: 0;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    body.rd-bb-active .rd-bb-picker-top--expanded .rd-bb-picker-title-row,
+    body.rd-bb-active .rd-bb-picker-top--expanded .rd-bb-controls {
+        flex: 0 0 auto;
+        width: 100%;
+        max-width: 100%;
     }
 
     .rd-bb-picker-top--expanded .rd-bb-picker-title-row {
-        flex: 1 1 100%;
+        flex: 0 0 auto;
         width: 100%;
     }
 
     .rd-bb-picker-top--expanded .rd-bb-controls {
-        flex: 1 1 100%;
+        flex: 0 0 auto;
         width: 100%;
     }
 
@@ -1937,8 +2174,10 @@ body.rd-bb-active .rd-bb-search-wrap {
             "search sort";
         align-items: center;
         gap: 0.5rem 0.75rem;
-        overflow: visible;
+        overflow: hidden;
         width: 100%;
+        max-width: 100%;
+        min-width: 0;
     }
 
     /* Row 1: swipeable category chips. */
@@ -1949,10 +2188,13 @@ body.rd-bb-active .rd-bb-search-wrap {
         width: 100%;
         max-width: 100%;
         min-width: 0;
-        flex-wrap: nowrap;
+        min-height: 2.35rem;
+        align-items: center;
+        flex-wrap: nowrap !important;
         overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
         scroll-snap-type: x proximity;
         scrollbar-width: none;
         touch-action: pan-x;
@@ -1971,7 +2213,11 @@ body.rd-bb-active .rd-bb-search-wrap {
 
     body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-chip {
         scroll-snap-align: start;
+        flex: 0 0 auto;
         flex-shrink: 0;
+        white-space: nowrap;
+        padding: 0.3rem 0.7rem;
+        font-size: 0.75rem;
     }
 
     /* Row 2: search + sort below the chips. */
@@ -2039,6 +2285,23 @@ body.rd-bb-active .rd-bb-search-wrap {
 
     body:not(.rd-bb-active) .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
         display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        scrollbar-width: none;
+    }
+
+    body:not(.rd-bb-active) .rd-bb-controls.rd-bb-filter-open .rd-bb-filter::-webkit-scrollbar {
+        display: none;
+    }
+
+    body:not(.rd-bb-active) .rd-bb-controls.rd-bb-filter-open .rd-bb-chip {
+        flex-shrink: 0;
     }
 
     body:not(.rd-bb-active) .rd-bb-controls.rd-bb-search-open .rd-bb-search-wrap {
@@ -2518,6 +2781,18 @@ body.rd-bb-active .rd-bb-search-wrap {
         display: none !important;
     }
 
+    body.rd-bb-active {
+        overflow-x: hidden;
+    }
+
+    body.rd-bb-active .rd-bb-picker-top,
+    body.rd-bb-active .rd-bb-picker-top--expanded {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: hidden;
+    }
+
     .rd-bb-active .rd-bb-picker-scroll {
         display: block;
         gap: 0;
@@ -2556,6 +2831,12 @@ body.rd-bb-active .rd-bb-search-wrap {
         margin-top: 0;
         margin-bottom: 0.5rem;
         padding-top: 0.15rem;
+        scroll-margin-top: 0.5rem;
+    }
+
+    body.rd-bb-active .rd-bb-toggle-row {
+        align-items: center;
+        gap: 0.5rem;
     }
 
     /* Stack Add/Buy CTAs — side-by-side labels clip in the narrow builder column. */

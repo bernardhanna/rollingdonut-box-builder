@@ -10,7 +10,7 @@ defined('ABSPATH') || exit;
 class RD_Box_Builder_Assets {
 
     public static function init(): void {
-        add_action('wp_enqueue_scripts', array(__CLASS__, 'enqueue'), 20);
+        add_action('wp_enqueue_scripts', array(__CLASS__, 'enqueue'), 45);
     }
 
     public static function enqueue(): void {
@@ -47,7 +47,7 @@ class RD_Box_Builder_Assets {
         wp_enqueue_style(
             'rd-box-builder',
             RD_BB_URL . 'assets/css/rd-box-builder.css',
-            array(),
+            array('matrix-rd-product'),
             file_exists($css_path) ? (string) filemtime($css_path) : RD_BB_VERSION
         );
 
@@ -96,6 +96,7 @@ class RD_Box_Builder_Assets {
                 'buildYourOwn'  => __('Build Your Own Box', 'rd-box-builder'),
                 'viewBox'       => __('View Box', 'rd-box-builder'),
                 'close'         => __('Close Box Builder Mode', 'rd-box-builder'),
+                'closeShort'    => __('Close builder', 'rd-box-builder'),
                 'noneInCategory' => __('No donuts in this category.', 'rd-box-builder'),
                 'noMatches'     => __('No flavours match your search.', 'rd-box-builder'),
                 'noneSelected'  => __('No flavours selected yet. Add a flavour to see it here.', 'rd-box-builder'),
