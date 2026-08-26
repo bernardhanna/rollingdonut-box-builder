@@ -4,7 +4,7 @@
  */
 
 .rd-bb-cart-acc {
-    margin: 0.5rem 0 0;
+    margin: 0.25rem 0 0;
     width: 100%;
 }
 
@@ -268,4 +268,9 @@
 .rd-side-cart .rd-bb-cart-addons-form textarea,
 .rd-side-cart .rd-bb-cart-addons-form input[type="file"] {
     font-size: 0.92rem;
+}
+
+/* Local Pickup Plus still prints an empty handling wrapper on cart/checkout. */
+.pickup-location-cart-item-field:not(:has(select, input, label, button, a, small)) {
+    display: none;
 }

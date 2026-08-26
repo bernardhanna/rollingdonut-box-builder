@@ -32,25 +32,51 @@ class RD_Box_Builder_Cart_Edit {
 
     /* ------------------------------------------------------------------ helpers */
 
-    /** A box-builder bundle parent line (not one of its child donut lines). */
+    /** A box-builder parent line (WPC bundle or legacy donut_box_builder). */
     public static function is_box_parent($cart_item): bool {
         if (! is_array($cart_item) || ! empty($cart_item['woosb_parent_id'])) {
             return false;
         }
+        if (! empty($cart_item['part_of_box'])) {
+            return false;
+        }
         $product_id = (int) ($cart_item['product_id'] ?? 0);
+        if ($product_id > 0 && function_exists('rd_box_builder_is_enabled') && rd_box_builder_is_enabled($product_id)) {
+            return true;
+        }
 
-        return $product_id > 0 && rd_box_builder_is_enabled($product_id);
+        $product = $cart_item['data'] ?? null;
+        if ($product instanceof WC_Product && $product->get_type() === 'donut_box_builder') {
+            return array_key_exists('part_of_box', $cart_item);
+        }
+
+        return false;
     }
 
     /** Donut child lines belonging to a given parent cart key: [name, qty]. */
-    private static function children_for(string $parent_key): array {
+    private static function children_for(string $parent_key, $parent_item = null): array {
         $children = array();
         if (! function_exists('WC') || ! WC()->cart) {
             return $children;
         }
 
+        if (! is_array($parent_item)) {
+            $parent_item = WC()->cart->get_cart_item($parent_key);
+        }
+
+        $unique = is_array($parent_item) ? (string) ($parent_item['unique_key'] ?? '') : '';
+        $stand_ids = array();
+        if (is_array($parent_item) && ! empty($parent_item['selected_stand_ids']) && is_array($parent_item['selected_stand_ids'])) {
+            $stand_ids = array_map('intval', $parent_item['selected_stand_ids']);
+        }
+
         foreach (WC()->cart->get_cart() as $ci) {
-            if (empty($ci['woosb_parent_key']) || $ci['woosb_parent_key'] !== $parent_key) {
+            $is_woosb   = ! empty($ci['woosb_parent_key']) && $ci['woosb_parent_key'] === $parent_key;
+            $is_legacy  = $unique !== '' && ! empty($ci['parent_item_key']) && $ci['parent_item_key'] === $unique;
+            if (! $is_woosb && ! $is_legacy) {
+                continue;
+            }
+            if ($is_legacy && in_array((int) ($ci['product_id'] ?? 0), $stand_ids, true)) {
                 continue;
             }
             $product = $ci['data'] ?? null;
@@ -63,6 +89,22 @@ class RD_Box_Builder_Cart_Edit {
             );
         }
 
+        if ($children === array() && is_array($parent_item) && ! empty($parent_item['products_data']) && is_array($parent_item['products_data'])) {
+            foreach ($parent_item['products_data'] as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $name = isset($row['name']) ? sanitize_text_field((string) $row['name']) : '';
+                $qty  = isset($row['quantity']) ? (int) $row['quantity'] : 0;
+                if ($name !== '' && $qty > 0) {
+                    $children[] = array(
+                        'name' => $name,
+                        'qty'  => $qty,
+                    );
+                }
+            }
+        }
+
         return $children;
     }
 
@@ -72,7 +114,7 @@ class RD_Box_Builder_Cart_Edit {
 
     /** Legacy special-occasion options (value => label), mirrors the product page. */
     private static function legacy_occasions(): array {
-        return array(
+        $occasions = array(
             'Happy Birthday Logo'  => 'Happy Birthday',
             'Congratulations Logo' => 'Congratulations',
             'Thank You Logo'       => 'Thank You',
@@ -86,6 +128,9 @@ class RD_Box_Builder_Cart_Edit {
             'Get well soon Logo'   => 'Get well soon',
             'Good luck Logo'       => 'Good luck',
         );
+        asort($occasions, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return $occasions;
     }
 
     /** Dropdown groups configured for a product, or empty array. */
@@ -119,14 +164,19 @@ class RD_Box_Builder_Cart_Edit {
             return '';
         }
 
-        $product_id = (int) ($cart_item['product_id'] ?? 0);
-        $children   = self::children_for($cart_item_key);
-        $count      = array_sum(array_map(static function ($c) { return $c['qty']; }, $children));
+        $product_id   = (int) ($cart_item['product_id'] ?? 0);
+        $children     = self::children_for($cart_item_key, $cart_item);
+        $count        = array_sum(array_map(static function ($c) { return $c['qty']; }, $children));
+        $acc_body_id  = 'rd-bb-cart-body-' . sanitize_html_class($cart_item_key);
+        $contents_id  = 'rd-bb-cart-contents-' . sanitize_html_class($cart_item_key);
+        $contents_label_id = $contents_id . '-label';
+        $scroll_hint_id = $contents_id . '-hint';
+        $toggle_id    = 'rd-bb-cart-toggle-' . sanitize_html_class($cart_item_key);
 
         ob_start();
         ?>
         <div class="rd-bb-cart-acc" data-key="<?php echo esc_attr($cart_item_key); ?>" data-context="<?php echo esc_attr($context); ?>">
-            <button type="button" class="rd-bb-cart-acc-toggle" aria-expanded="false">
+            <button type="button" class="rd-bb-cart-acc-toggle" id="<?php echo esc_attr($toggle_id); ?>" aria-expanded="false" aria-controls="<?php echo esc_attr($acc_body_id); ?>">
                 <span class="rd-bb-cart-acc-toggle-label"><?php
                     /* translators: %d: number of donuts in the box */
                     echo esc_html(sprintf(_n('View box details (%d item)', 'View box details (%d items)', $count, 'rd-box-builder'), $count));
@@ -134,15 +184,26 @@ class RD_Box_Builder_Cart_Edit {
                 <span class="rd-bb-cart-acc-caret" aria-hidden="true">&#9662;</span>
             </button>
 
-            <div class="rd-bb-cart-acc-body" hidden>
+            <div class="rd-bb-cart-acc-body" id="<?php echo esc_attr($acc_body_id); ?>" hidden>
                 <?php if (! empty($children)) : ?>
                 <div class="rd-bb-cart-section">
-                    <div class="rd-bb-cart-section-title"><?php esc_html_e('In your box', 'rd-box-builder'); ?></div>
-                    <ul class="rd-bb-cart-contents">
-                        <?php foreach ($children as $child) : ?>
-                        <li><span class="rd-bb-cart-qty"><?php echo esc_html($child['qty']); ?>&times;</span> <?php echo esc_html($child['name']); ?></li>
-                        <?php endforeach; ?>
-                    </ul>
+                    <div class="rd-bb-cart-section-title" id="<?php echo esc_attr($contents_label_id); ?>"><?php esc_html_e('In your box', 'rd-box-builder'); ?></div>
+                    <div class="rd-bb-cart-contents-wrap">
+                        <div
+                            class="rd-bb-cart-contents-scroll"
+                            id="<?php echo esc_attr($contents_id); ?>"
+                            role="region"
+                            tabindex="0"
+                            aria-labelledby="<?php echo esc_attr($contents_label_id); ?>"
+                        >
+                            <ul class="rd-bb-cart-contents">
+                                <?php foreach ($children as $child) : ?>
+                                <li><span class="rd-bb-cart-qty"><?php echo esc_html($child['qty']); ?>&times;</span> <?php echo esc_html($child['name']); ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                        <p class="rd-bb-cart-scroll-hint" id="<?php echo esc_attr($scroll_hint_id); ?>" hidden><?php esc_html_e('Scroll for more items', 'rd-box-builder'); ?></p>
+                    </div>
                 </div>
                 <?php endif; ?>
 
@@ -248,7 +309,8 @@ class RD_Box_Builder_Cart_Edit {
                     </select>
                 </label>
                 <?php endforeach; ?>
-            <?php elseif (! $note_only && $enable_occasion) :
+            <?php endif; ?>
+            <?php if (! $note_only && $enable_occasion) :
                 $require_occasion = self::acf_bool('require_special_occasion', $product_id);
                 $current          = isset($cart_item['custom_product_option']) ? (string) $cart_item['custom_product_option'] : '';
                 ?>
@@ -361,8 +423,8 @@ class RD_Box_Builder_Cart_Edit {
             }
         }
 
-        $occasion = '';
-        if (empty($groups) && self::acf_bool('enable_special_occasion', $product_id)) {
+        $occasion = isset($item['custom_product_option']) ? (string) $item['custom_product_option'] : '';
+        if (self::acf_bool('enable_special_occasion', $product_id)) {
             $occasion = isset($_POST['custom_product_option']) ? sanitize_text_field(wp_unslash($_POST['custom_product_option'])) : '';
             $allowed  = array_keys(self::legacy_occasions());
             if ($occasion !== '' && ! in_array($occasion, $allowed, true)) {

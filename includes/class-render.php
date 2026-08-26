@@ -58,7 +58,7 @@ class RD_Box_Builder_Render {
                     data-initial-count="<?php echo esc_attr((string) $cart_count); ?>"
                     <?php echo $uses_side_cart ? 'data-rd-side-cart-trigger' : ''; ?>
                 >
-                    <span class="iconify rd-bb-cart-btn__icon" data-icon="grommet-icons:basket" data-width="28" data-height="28" aria-hidden="true"></span>
+                    <span class="iconify rd-bb-cart-btn__icon" data-icon="grommet-icons:cart" data-width="28" data-height="28" aria-hidden="true"></span>
                     <span
                         class="rd-bb-cart-btn__count"
                         <?php echo $cart_count > 0 ? '' : 'hidden'; ?>
@@ -67,15 +67,18 @@ class RD_Box_Builder_Render {
                 </a>
             </div>
             <?php if ($box_name !== '') : ?>
-            <p class="rd-bb-set-box-notice">
+            <div class="rd-bb-set-box-notice" role="note">
+                <p class="rd-bb-set-box-notice__title"><?php esc_html_e('Or:', 'rd-box-builder'); ?></p>
+                <p class="rd-bb-set-box-notice__body">
                 <?php
                 printf(
                     /* translators: %s: preset box product name */
-                    esc_html__('Or select our set %s box containing the following flavours:', 'rd-box-builder'),
+                    esc_html__('Select our set %s box containing the following flavours:', 'rd-box-builder'),
                     esc_html($box_name)
                 );
                 ?>
-            </p>
+                </p>
+            </div>
             <?php endif; ?>
         </div>
         <?php
@@ -134,7 +137,11 @@ class RD_Box_Builder_Render {
             <?php do_action('rd_box_builder_after_box', $product); ?>
 
             <button type="button" class="rd-bb-open-picker">
-                <span class="rd-bb-open-picker-icon" aria-hidden="true">+</span>
+                <span class="rd-bb-open-picker-icon" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" focusable="false">
+                        <path d="M6 1.25v9.5M1.25 6h9.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+                    </svg>
+                </span>
                 <?php esc_html_e('Add or swap flavours', 'rd-box-builder'); ?>
             </button>
 
@@ -147,7 +154,11 @@ class RD_Box_Builder_Render {
                     <div class="rd-bb-sheet-head-row">
                         <span class="rd-bb-sheet-title"><?php esc_html_e('Add Flavours', 'rd-box-builder'); ?></span>
                         <span class="rd-bb-sheet-count"><span class="rd-bb-count-current">0</span>/<span class="rd-bb-count-max">0</span></span>
-                        <button type="button" class="rd-bb-sheet-close" aria-label="<?php esc_attr_e('Close', 'rd-box-builder'); ?>">&times;</button>
+                        <button type="button" class="rd-bb-sheet-close" aria-label="<?php esc_attr_e('Close', 'rd-box-builder'); ?>">
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" focusable="false">
+                                <path d="M2.25 2.25l7.5 7.5M9.75 2.25l-7.5 7.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
                 <div class="rd-bb-picker-top">
@@ -232,15 +243,6 @@ class RD_Box_Builder_Render {
             <button type="button" class="rd-bb-mobilebar-buynow" disabled>
                 <?php esc_html_e('Buy Now', 'rd-box-builder'); ?>
             </button>
-            <?php if (function_exists('matrix_rd_uses_side_cart') && matrix_rd_uses_side_cart()) : ?>
-                <button type="button" class="rd-bb-mobilebar-cart" data-rd-side-cart-trigger aria-label="<?php esc_attr_e('View your basket', 'rd-box-builder'); ?>">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
-                        <path d="M3 6h18"></path>
-                        <path d="M16 10a4 4 0 0 1-8 0"></path>
-                    </svg>
-                </button>
-            <?php endif; ?>
         </div>
         <?php
     }

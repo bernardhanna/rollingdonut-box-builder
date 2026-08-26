@@ -36,6 +36,7 @@ require_once RD_BB_DIR . 'includes/class-stats.php';
 require_once RD_BB_DIR . 'includes/class-addons.php';
 require_once RD_BB_DIR . 'includes/class-cart-edit.php';
 require_once RD_BB_DIR . 'includes/class-integrity.php';
+require_once RD_BB_DIR . 'includes/class-zero-qty.php';
 
 if (defined('WP_CLI') && WP_CLI) {
     require_once RD_BB_DIR . 'includes/class-cli.php';
@@ -66,6 +67,7 @@ function rd_box_builder_init(): void {
     RD_Box_Builder_Addons::init();
     RD_Box_Builder_Cart_Edit::init();
     RD_Box_Builder_Integrity::init();
+    RD_Box_Builder_Zero_Qty::init();
 
     if (defined('WP_CLI') && WP_CLI) {
         WP_CLI::add_command('rd-box-builder', 'RD_Box_Builder_CLI');

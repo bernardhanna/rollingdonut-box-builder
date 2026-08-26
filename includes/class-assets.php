@@ -94,6 +94,8 @@ class RD_Box_Builder_Assets {
                 'fullNotice'    => __('Your box is full. Remove a donut from your box to swap in a different flavour.', 'rd-box-builder'),
                 'chooseDonuts'  => __('Add Flavours to your box!', 'rd-box-builder'),
                 'buildYourOwn'  => __('Build Your Own Box', 'rd-box-builder'),
+                'buildNewBox'   => __('Build a new box', 'rd-box-builder'),
+                'addAnotherBox' => __('Clear', 'rd-box-builder'),
                 'viewBox'       => __('View Box', 'rd-box-builder'),
                 'close'         => __('Close Box Builder Mode', 'rd-box-builder'),
                 'closeShort'    => __('Close builder', 'rd-box-builder'),

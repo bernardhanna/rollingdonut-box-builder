@@ -71,11 +71,13 @@ class RD_Box_Builder_Addons {
             }
         }
 
-        // Legacy special-occasion select (only when no ACF dropdown groups exist —
-        // those enforce their own "required" in box-builder-woo).
-        $has_groups = function_exists('dbb_get_custom_dropdown_groups')
-            && ! empty(dbb_get_custom_dropdown_groups($product_id));
-        if (! $has_groups
+        // Legacy special-occasion select (skipped when a custom group is the occasion field itself).
+        $groups = function_exists('dbb_get_custom_dropdown_groups')
+            ? dbb_get_custom_dropdown_groups($product_id)
+            : array();
+        $replaces_occasion = function_exists('dbb_dropdown_groups_replace_legacy_occasion')
+            && dbb_dropdown_groups_replace_legacy_occasion($groups);
+        if (! $replaces_occasion
             && self::acf_bool('enable_special_occasion', $product_id)
             && self::acf_bool('require_special_occasion', $product_id)) {
             $occasion = isset($_POST['custom_product_option']) ? sanitize_text_field(wp_unslash($_POST['custom_product_option'])) : '';

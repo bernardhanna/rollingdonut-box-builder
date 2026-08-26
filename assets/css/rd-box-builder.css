@@ -29,14 +29,36 @@ body.rd-bb-active #scrollToTopButton {
 
 .rd-bb-toggle-wrap {
     margin: 0 0 1rem;
+    width: 100%;
+    max-width: 100%;
+    flex: 1 1 100%;
 }
 
 .rd-bb-set-box-notice {
-    margin: 1.25rem 0 1rem;
+    margin: 1.25rem 0 1.25rem;
     max-width: 688px;
+    padding: 0.6rem 0.85rem 0.85rem;
+    border: 2px solid #000;
+    border-left-width: 6px;
+    border-radius: 8px;
+    background: #fff8d4;
+    color: #000;
+}
+
+.rd-bb-set-box-notice__title {
+    margin: 0 0 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.rd-bb-set-box-notice__body {
+    margin: 0;
     font-family: "Laca Pro", Laca, sans-serif;
     font-size: 1rem;
-    font-weight: 400;
+    font-weight: 700;
     line-height: 1.5;
     color: #000;
 }
@@ -53,7 +75,7 @@ body.rd-bb-active .rd-bb-toggle-wrap {
     top: 0;
     z-index: 30;
     margin: 0 0 0.65rem;
-    padding: 0.25rem 0 0;
+    padding: 0.1rem 0 0;
     background: #fff;
 }
 
@@ -227,25 +249,46 @@ body.rd-bb-active .rd-bb-toggle {
     }
 }
 
-@media (max-width: 380px) {
+/* Phones: icon-only circular close on the left, cart stays on the right. */
+@media (max-width: 639px) {
+    body.rd-bb-active .rd-bb-toggle-wrap {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        flex-basis: 100%;
+    }
+
+    body.rd-bb-active .rd-bb-toggle-row {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
     body.rd-bb-active .rd-bb-toggle[aria-pressed="true"] {
         flex: 0 0 48px;
         width: 48px;
+        height: 48px;
         min-width: 48px;
         max-width: 48px;
-        padding: 0;
+        padding: 0 !important;
+        gap: 0 !important;
+        border-radius: 50% !important;
+        overflow: hidden;
+        position: relative;
     }
 
     body.rd-bb-active .rd-bb-toggle[aria-pressed="true"] .rd-bb-toggle-label {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
+        display: none;
+    }
+
+    body.rd-bb-active .rd-bb-cart-btn {
+        margin-left: auto;
+        width: 48px;
+        min-width: 48px;
+        height: 48px;
+        border-radius: 50%;
     }
 }
 
@@ -539,6 +582,15 @@ body.rd-bb-active .rd-side-cart {
     animation: rd-bb-box-glow 0.9s ease;
 }
 
+/* Set-box and builder each have their own box-count stepper. Only the active
+ * mode's wrap is shown; the idle clone keeps its value without leaking. */
+body.rd-bb-active form.cart > .rd-bb-qty-wrap--setbox {
+    display: none !important;
+}
+body:not(.rd-bb-active) form.cart > .rd-bb-qty-wrap--builder {
+    display: none !important;
+}
+
 /* Once a configured box is in the basket, hide the main quantity input — the
  * −/+ stepper in the CTA row replaces it. Keep quantity visible while building
  * so customers can choose how many boxes to add. */
@@ -563,6 +615,72 @@ body.rd-bb-active .rd-side-cart {
 
 .rd-bb-in-cart .rd-bb-cart-stepper {
     display: flex;
+}
+
+/* Shown with the −/+ stepper so a different custom box can still be started. */
+.rd-bb-new-box {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 100%;
+    width: 100%;
+    height: 48px;
+    padding: 12px 24px;
+    border: 3px solid #000;
+    border-radius: 72px;
+    background: #fff;
+    color: #000;
+    font-family: Edmondsans, sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    box-shadow: none;
+}
+
+form.cart.rd-bb-in-cart .rd-bb-new-box,
+.rd-bb-in-cart .rd-bb-new-box {
+    display: inline-flex;
+}
+
+.rd-bb-new-box:hover,
+.rd-bb-new-box:focus-visible {
+    background: var(--rd-bb-accent);
+    color: #000;
+}
+
+/* Set-box: "Clear" is a text action under the stepper / checkout pair, not a
+ * third CTA button. Extra top margin separates it from the two buttons above. */
+form.cart.rd-bb-in-cart .rd-bb-new-box.rd-bb-new-box--clear,
+.rd-bb-in-cart .rd-bb-new-box.rd-bb-new-box--clear {
+    display: block;
+    align-items: unset;
+    justify-content: flex-start;
+    flex: 1 1 100%;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    margin-top: 0.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #f55959;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.4;
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    box-shadow: none;
+}
+
+form.cart.rd-bb-in-cart .rd-bb-new-box.rd-bb-new-box--clear:hover,
+form.cart.rd-bb-in-cart .rd-bb-new-box.rd-bb-new-box--clear:focus-visible,
+.rd-bb-in-cart .rd-bb-new-box.rd-bb-new-box--clear:hover,
+.rd-bb-in-cart .rd-bb-new-box.rd-bb-new-box--clear:focus-visible {
+    background: transparent;
+    color: #c13d3d;
 }
 
 /* Mobile add button is ours, so a plain hide works. */
@@ -1140,6 +1258,20 @@ body.rd-bb-active .product.type-product {
     box-sizing: border-box;
 }
 
+/* Tighter top spacing while the builder is open. */
+body.rd-bb-active .rd-bb-title {
+    padding-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+body.rd-bb-active .rd-bb-picker-headrow {
+    margin-bottom: 0.5rem;
+}
+
+body.rd-bb-active .rd-bb-picker-top {
+    gap: 0.35rem;
+}
+
 .rd-bb-picker {
     animation: rd-bb-fade-in 0.3s ease;
 }
@@ -1206,7 +1338,7 @@ body.rd-bb-active .product.type-product {
         border-left: none;
         /* The box column scrolls with the page so the close button and box list
          * stay in natural document order. The flavour picker keeps its own scroll. */
-        padding: 0.35rem 0.5rem 1.5rem 2rem;
+        padding: 0.15rem 0.5rem 1.5rem 2rem;
     }
 
     /* Let the close control scroll with the box list instead of pinning to the
@@ -1240,6 +1372,7 @@ body.rd-bb-active .product.type-product {
     body.rd-bb-active .rd-bb-cta-row,
     body.rd-bb-active .rd-product-cta-row {
         display: flex;
+        flex-wrap: wrap;
         gap: 0.75rem;
         align-items: stretch;
         margin-top: 1rem;
@@ -1264,6 +1397,14 @@ body.rd-bb-active .product.type-product {
         margin: 0 !important;
     }
 
+    body.rd-bb-active .rd-bb-cta-row .rd-bb-new-box,
+    body.rd-bb-active .rd-product-cta-row .rd-bb-new-box {
+        flex: 1 1 100%;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+    }
+
     .rd-bb-active .rd-bb-picker-scroll {
         display: flex;
         align-items: stretch;
@@ -1274,10 +1415,10 @@ body.rd-bb-active .product.type-product {
 
     .rd-bb-active .rd-bb-picker {
         position: sticky;
-        top: 24px;
+        top: 12px;
         flex: 1 1 auto;
         min-width: 0;
-        max-height: calc(100vh - 48px);
+        max-height: calc(100vh - 36px);
         overflow-y: auto;
         overscroll-behavior: contain;
         padding-right: 0.25rem;
@@ -1292,9 +1433,9 @@ body.rd-bb-active .product.type-product {
 
     /* Custom divider scrollbar: transparent rail, black border, yellow thumb. */
     .rd-bb-scrollbar {
-        --rd-bb-scrollbar-h: calc((100vh - 48px) / 3);
+        --rd-bb-scrollbar-h: calc((100vh - 36px) / 3);
         position: sticky;
-        top: calc(24px + (100vh - 48px) / 3);
+        top: calc(12px + (100vh - 36px) / 3);
         display: flex;
         flex-direction: column;
         flex: 0 0 18px;
@@ -1774,7 +1915,7 @@ body.rd-bb-active .rd-bb-search-wrap {
         flex-wrap: nowrap;
         justify-content: flex-start;
         gap: 0.75rem;
-        margin-bottom: 0.85rem;
+        margin-bottom: 0.5rem;
     }
 
     body.rd-bb-active .rd-bb-picker-title-row .rd-bb-title {
@@ -2827,10 +2968,15 @@ body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
         padding-top: 0.25rem !important;
     }
 
+    /* Close builder scrolls away with the box — it does not need to stay pinned. */
     body.rd-bb-active .rd-bb-toggle-wrap {
+        position: static;
+        top: auto;
+        z-index: auto;
         margin-top: 0;
         margin-bottom: 0.5rem;
         padding-top: 0.15rem;
+        background: transparent;
         scroll-margin-top: 0.5rem;
     }
 
@@ -2867,6 +3013,14 @@ body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
         white-space: normal;
         min-height: 40px;
         height: auto !important;
+    }
+
+    body.rd-bb-active .rd-bb-cta-row .rd-bb-new-box,
+    body.rd-bb-active .rd-product-cta-row .rd-bb-new-box {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        min-height: 40px;
     }
 
     /* On mobile the wrapper is transparent so the title sits in its own bar ABOVE
@@ -2928,7 +3082,8 @@ body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
     /* Sticky action bar on mobile while building. */
     .rd-bb-active .rd-bb-mobilebar {
         display: flex;
-        align-items: center;
+        flex-wrap: wrap;
+        align-items: stretch;
         justify-content: space-between;
         gap: 0.75rem;
         position: fixed;
@@ -2960,7 +3115,8 @@ body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
     }
 
     .rd-bb-mobilebar-addcart {
-        flex: 1 1 auto;
+        flex: 1 1 100%;
+        width: 100%;
         border: none;
         border-radius: var(--rd-bb-radius-sm);
         background: var(--rd-bb-accent);
@@ -2972,7 +3128,8 @@ body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
     }
 
     .rd-bb-mobilebar-buynow {
-        flex: 1 1 auto;
+        flex: 1 1 100%;
+        width: 100%;
         border: 2px solid var(--rd-bb-accent);
         border-radius: var(--rd-bb-radius-sm);
         background: transparent;
@@ -2989,27 +3146,25 @@ body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
         cursor: not-allowed;
     }
 
-    /* Compact basket button that re-opens the side-cart slide-out, so there's a
-     * way back to the cart even after the customer dismisses it. Sits at the end
-     * of the bar. (The theme back-to-top control is hidden in builder mode, so it
-     * no longer overlaps this or the +/- stepper — see the global rule below.) */
-    .rd-bb-mobilebar-cart {
-        flex: 0 0 auto;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2.75rem;
-        height: 2.75rem;
-        padding: 0;
-        border: 2px solid var(--rd-bb-accent);
-        border-radius: 999px;
+    .rd-bb-mobilebar .rd-bb-new-box {
+        display: none;
+        flex: 1 1 100%;
+        order: 20;
+        height: auto;
+        min-height: 40px;
+        border-color: var(--rd-bb-accent);
         background: transparent;
         color: var(--rd-bb-accent);
-        cursor: pointer;
+        border-radius: var(--rd-bb-radius-sm);
+        font-size: 0.95rem;
     }
 
-    .rd-bb-mobilebar-cart:hover,
-    .rd-bb-mobilebar-cart:focus-visible {
+    .rd-bb-mobilebar.rd-bb-in-cart .rd-bb-new-box {
+        display: inline-flex;
+    }
+
+    .rd-bb-mobilebar .rd-bb-new-box:hover,
+    .rd-bb-mobilebar .rd-bb-new-box:focus-visible {
         background: var(--rd-bb-accent);
         color: #000;
     }
@@ -3062,8 +3217,13 @@ body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
         border-radius: 50%;
         background: #000;
         color: var(--rd-bb-accent);
-        font-weight: 700;
-        line-height: 1;
+        line-height: 0;
+        font-size: 0;
+    }
+
+    .rd-bb-open-picker-icon svg {
+        display: block;
+        flex-shrink: 0;
     }
 
     /* Hint that empty slots are tappable on mobile. */
@@ -3211,10 +3371,15 @@ body.rd-bb-active .rd-bb-controls.rd-bb-filter-open .rd-bb-filter {
         border-radius: 50%;
         background: #f55959;
         color: #000;
-        font-size: 1.3rem;
-        line-height: 1;
+        font-size: 0;
+        line-height: 0;
         cursor: pointer;
         transition: background-color 0.15s ease, opacity 0.15s ease;
+    }
+
+    .rd-bb-sheet-close svg {
+        display: block;
+        flex-shrink: 0;
     }
 
     .rd-bb-sheet-close:hover,

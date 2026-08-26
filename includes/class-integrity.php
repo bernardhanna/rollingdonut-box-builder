@@ -18,8 +18,8 @@
  *      child line quantities back to the exact box size and leave an order note for
  *      staff. This directly fixes what the packing slip renders.
  *
- * The reconciliation maths lives in reconcile() — a pure, dependency-free function
- * that is unit tested.
+ * The reconciliation maths lives in reconcile() and the parent/child pairing
+ * lives in group_box_lines() — both are pure, dependency-free, and unit tested.
  *
  * @package RD_Box_Builder
  */
@@ -104,6 +104,84 @@ class RD_Box_Builder_Integrity {
         }
 
         return $max_key;
+    }
+
+    /**
+     * Pair box parent lines with the child donut lines that follow them.
+     *
+     * Pure and dependency-free (no WordPress) so it can be unit tested in isolation.
+     *
+     * WPC only stores `_woosb_parent_id` (the box product id) on children, so two
+     * separately-configured copies of the same box share that id. Children are
+     * written immediately after their parent — the same order a packing slip
+     * shows — so each child belongs to the most recently opened parent of that
+     * product. Two complete Midi boxes of 60 therefore stay 60/60 + 60/60
+     * instead of being pooled into a false 120/60 warning.
+     *
+     * @param array<int, array{id:int|string, product_id:int, quantity:int, name:string, parent_product_id:int, box_size:int}> $lines
+     * @return array<int, array{name:string, parent_id:int|string, child_ids:array<int, int|string>, expected:int, actual:int, ambiguous:bool}>
+     */
+    public static function group_box_lines(array $lines): array {
+        $open             = array();
+        $groups_by_parent = array();
+
+        foreach ($lines as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+
+            $id                = $line['id'] ?? null;
+            $product_id        = (int) ($line['product_id'] ?? 0);
+            $quantity          = (int) ($line['quantity'] ?? 0);
+            $name              = (string) ($line['name'] ?? '');
+            $parent_product_id = (int) ($line['parent_product_id'] ?? 0);
+            $box_size          = (int) ($line['box_size'] ?? 0);
+
+            if ($id === null || $id === '') {
+                continue;
+            }
+
+            if ($parent_product_id > 0) {
+                $parent_id = $open[$parent_product_id] ?? null;
+                if ($parent_id !== null && isset($groups_by_parent[$parent_id])) {
+                    $groups_by_parent[$parent_id]['child_ids'][] = $id;
+                    $groups_by_parent[$parent_id]['actual']     += max(0, $quantity);
+                }
+                continue;
+            }
+
+            if ($box_size <= 0) {
+                continue;
+            }
+
+            $boxes = max(1, $quantity);
+            $groups_by_parent[$id] = array(
+                'name'       => $name,
+                'parent_id'  => $id,
+                'product_id' => $product_id,
+                'child_ids'  => array(),
+                'expected'   => $box_size * $boxes,
+                'actual'     => 0,
+                'ambiguous'  => false,
+            );
+            $open[$product_id] = $id;
+        }
+
+        $count_by_product = array();
+        foreach ($groups_by_parent as $group) {
+            $pid = (int) $group['product_id'];
+            $count_by_product[$pid] = ($count_by_product[$pid] ?? 0) + 1;
+        }
+
+        $groups = array();
+        foreach ($groups_by_parent as $group) {
+            $multi = ($count_by_product[(int) $group['product_id']] ?? 0) > 1;
+            $group['ambiguous'] = $multi && $group['actual'] !== $group['expected'];
+            unset($group['product_id']);
+            $groups[] = $group;
+        }
+
+        return $groups;
     }
 
     /**
@@ -209,8 +287,8 @@ class RD_Box_Builder_Integrity {
                 continue;
             }
 
-            // Ambiguous (the same box product appears on more than one line) or no
-            // child lines to adjust: flag for manual review rather than guessing.
+            // Ambiguous (children could not be uniquely paired to this parent) or
+            // no child lines to adjust: flag for manual review rather than guessing.
             if ($group['ambiguous'] || empty($group['children'])) {
                 $order->add_order_note(sprintf(
                     /* translators: 1: box name, 2: current count, 3: required count */
@@ -296,57 +374,56 @@ class RD_Box_Builder_Integrity {
      */
     private static function order_box_groups(WC_Order $order): array {
         $items = $order->get_items();
+        $lines = array();
 
-        // Count how many parent lines exist per box product, to detect ambiguity.
-        $parents_by_product = array();
         foreach ($items as $item_id => $item) {
             if (! $item instanceof WC_Order_Item_Product) {
                 continue;
             }
-            if ($item->get_meta('_woosb_parent_id')) {
-                continue; // this is a child line
+
+            $parent_product_id = (int) $item->get_meta('_woosb_parent_id');
+            $product_id        = (int) $item->get_product_id();
+            $box_size          = 0;
+
+            if ($parent_product_id <= 0 && $product_id > 0 && rd_box_builder_is_enabled($product_id)) {
+                $box_size = self::box_size($item->get_product());
             }
-            $product_id = (int) $item->get_product_id();
-            if ($product_id > 0 && rd_box_builder_is_enabled($product_id)) {
-                $parents_by_product[$product_id][] = $item_id;
-            }
+
+            $lines[] = array(
+                'id'                => $item_id,
+                'product_id'        => $product_id,
+                'quantity'          => (int) $item->get_quantity(),
+                'name'              => $item->get_name(),
+                'parent_product_id' => $parent_product_id,
+                'box_size'          => $box_size,
+            );
         }
 
         $groups = array();
+        foreach (self::group_box_lines($lines) as $group) {
+            $parent = $items[$group['parent_id']] ?? null;
+            if (! $parent instanceof WC_Order_Item_Product) {
+                continue;
+            }
 
-        foreach ($parents_by_product as $product_id => $parent_ids) {
-            $ambiguous = count($parent_ids) > 1;
-
-            // Children link to their box by parent product id.
             $children = array();
-            foreach ($items as $child_id => $child) {
-                if ($child instanceof WC_Order_Item_Product
-                    && (int) $child->get_meta('_woosb_parent_id') === $product_id) {
-                    $children[$child_id] = $child;
+            if (! $group['ambiguous']) {
+                foreach ($group['child_ids'] as $child_id) {
+                    $child = $items[$child_id] ?? null;
+                    if ($child instanceof WC_Order_Item_Product) {
+                        $children[$child_id] = $child;
+                    }
                 }
             }
 
-            foreach ($parent_ids as $parent_id) {
-                $parent   = $items[$parent_id];
-                $product  = $parent->get_product();
-                $size     = self::box_size($product);
-                $boxes    = max(1, (int) $parent->get_quantity());
-                $expected = $size * $boxes;
-
-                $actual = 0;
-                foreach ($children as $child) {
-                    $actual += (int) $child->get_quantity();
-                }
-
-                $groups[] = array(
-                    'name'      => $parent->get_name(),
-                    'parent'    => $parent,
-                    'children'  => $ambiguous ? array() : $children,
-                    'expected'  => $expected,
-                    'actual'    => $actual,
-                    'ambiguous' => $ambiguous,
-                );
-            }
+            $groups[] = array(
+                'name'      => $group['name'],
+                'parent'    => $parent,
+                'children'  => $children,
+                'expected'  => $group['expected'],
+                'actual'    => $group['actual'],
+                'ambiguous' => $group['ambiguous'],
+            );
         }
 
         return $groups;

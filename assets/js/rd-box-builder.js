@@ -73,6 +73,9 @@
         state.sheetTarget = (targetPos != null && !isNaN(targetPos)) ? parseInt(targetPos, 10) : null;
         $('body').addClass('rd-bb-sheet-open');
         dom.backdrop.prop('hidden', false);
+        if (isMobile() && !(window.history.state && window.history.state.rdBbSheet)) {
+            window.history.pushState({ rdBbSheet: true }, '');
+        }
         // The grid only knows its scrollable height once the sheet is on screen.
         if (window.requestAnimationFrame) {
             window.requestAnimationFrame(function () {
@@ -83,7 +86,9 @@
         }
     }
 
-    function closeSheet(state, dom) {
+    function closeSheet(state, dom, options) {
+        options = options || {};
+        var wasOpen = $('body').hasClass('rd-bb-sheet-open');
         state.sheetTarget = null;
         $('body').removeClass('rd-bb-sheet-open');
         dom.backdrop.prop('hidden', true);
@@ -97,6 +102,9 @@
             picker.classList.remove('rd-bb-sheet-resizing');
         }
         rebuildPickerAutoLoad(state, dom);
+        if (!options.fromPopstate && wasOpen && window.history.state && window.history.state.rdBbSheet) {
+            window.history.back();
+        }
     }
 
     // Drag the sheet handle up/down to resize the bottom sheet; a plain tap (no
@@ -231,7 +239,21 @@
             // Customer can opt out of the instructional nudges (Help panel);
             // remembered per browser. The functional count/progress stays.
             hintsOff: readHintsOff(),
-            pickerLimit: PICKER_BATCH
+            pickerLimit: PICKER_BATCH,
+            // Number-of-boxes qty is independent per mode so bumping the set-box
+            // stepper (e.g. add 3 classic boxes) does not carry into "Build Your
+            // Own Box", and a custom-box qty does not leak back the other way.
+            setBoxQty: null,
+            builderQty: null,
+            // Same for the in-cart stepper: adding 3 classic boxes must not make
+            // builder mode look like those 3 custom boxes are already in the basket.
+            setBoxCart: null,
+            builderCart: null,
+            // Team / occasion / logo are independent per mode so a set-box
+            // selection (e.g. Happy birthday) does not lock the custom box to
+            // the same option — builder starts empty and can pick a new one.
+            setBoxAddons: null,
+            builderAddons: null
         };
         // Fixed positional map of the box (one entry per slot). Lets a removed
         // donut leave its gap in place instead of the rest re-flowing left.
@@ -332,6 +354,8 @@
         // Group the CTA buttons before initCart so the in-cart stepper (inserted
         // right after the add button) lands inside the same row wrapper.
         wrapCtaButtons(dom);
+        splitModeQuantityInputs(dom);
+        applyModeQuantityUi(dom, false);
         initDragAndDrop(state, dom);
         setupScrollHint(state, dom);
         syncPickerScrollbar(dom);
@@ -838,11 +862,19 @@
 
         var rows = '';
         var seen = {};
+        var filled = state.items.filter(function (item) { return item.qty > 0; });
+        filled.sort(function (a, b) {
+            return summarySortName(a.name).localeCompare(summarySortName(b.name), undefined, {
+                sensitivity: 'base',
+                numeric: true
+            });
+        });
 
-        state.items.forEach(function (item) {
-            if (item.qty <= 0) { return; }
-
+        filled.forEach(function (item) {
             var names = (item.allergens || []).map(function (a) { return a.name; }).filter(Boolean);
+            names.sort(function (a, b) {
+                return String(a).localeCompare(String(b), undefined, { sensitivity: 'base', numeric: true });
+            });
             var key = item.name + ':' + names.join(',');
             if (seen[key]) { return; }
             seen[key] = true;
@@ -1376,14 +1408,24 @@
     // Static, non-editable view shown by default. Reuses WPC's `.woosb-products`
     // markup/classes so it inherits the exact theme styling of a fixed bundle
     // (e.g. holy-communion) — a plain "N × Name" list with no quantity steppers.
+    function summarySortName(name) {
+        return String(name || '').replace(/\s+[—–-]\s+(large|midi)\s*$/i, '').trim();
+    }
+
     function renderSummary(state, dom) {
         if (!dom.summary || !dom.summary.length) { return; }
 
+        var filled = state.items.filter(function (item) { return item.qty > 0; });
+        filled.sort(function (a, b) {
+            return summarySortName(a.name).localeCompare(summarySortName(b.name), undefined, {
+                sensitivity: 'base',
+                numeric: true
+            });
+        });
+
         var rows = '';
-        var rowCount = 0;
-        state.items.forEach(function (item) {
-            if (item.qty <= 0) { return; }
-            rowCount++;
+        var rowCount = filled.length;
+        filled.forEach(function (item) {
             rows += '<div class="woosb-product">'
                 + '<div class="woosb-thumb"><div class="woosb-thumb-ori">'
                 + '<img src="' + esc(item.thumb) + '" alt="' + esc(item.name) + '">'
@@ -1829,18 +1871,171 @@
     // earlier box (or any other product) is already in the basket. `addedIds` is
     // the woosb config that was added, so editing the box afterwards reverts the
     // stepper to the add button (the edited box is a different, separate one).
-    var cart = { key: null, qty: 0, busy: false, ui: false, addedIds: null };
+    var cart = { key: null, qty: 0, busy: false, ui: false, addedIds: null, epoch: 0 };
 
     function cartAjax() { return cfg.ajax || {}; }
 
+    function usesSideCart() {
+        return document.body.classList.contains('rd-cart-feedback-side');
+    }
+
     // Open the theme's cart feedback (side-cart slide-out, or notice popup) after
     // an AJAX add, mirroring what a normal add-to-cart would do.
-    function openCartFeedback() {
+    function openCartFeedback(prefetched) {
+        if (usesSideCart() && typeof window.matrixRdOpenSideCart === 'function') {
+            window.matrixRdOpenSideCart(prefetched);
+            return;
+        }
+
         if (typeof window.matrixRdRefreshCartAndNotices === 'function') {
             window.matrixRdRefreshCartAndNotices();
         } else {
             $(document.body).trigger('added_to_cart');
         }
+    }
+
+    function parseMoney(str) {
+        if (str == null || str === '') { return null; }
+        var cleaned = String(str).replace(/[^\d,.\-]/g, '');
+        if (cleaned.indexOf(',') >= 0 && cleaned.indexOf('.') >= 0) {
+            cleaned = cleaned.replace(/,/g, '');
+        } else if (cleaned.indexOf(',') >= 0 && !/\.\d{1,2}$/.test(cleaned)) {
+            cleaned = cleaned.replace(',', '.');
+        }
+        var n = parseFloat(cleaned);
+        return isNaN(n) ? null : n;
+    }
+
+    function formatMoney(amount, template) {
+        var n = Math.round(amount * 100) / 100;
+        var formatted = n.toFixed(2);
+        var t = String(template || '');
+        if (t) {
+            var replaced = t.replace(/(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)/, formatted);
+            if (replaced !== t) { return replaced; }
+        }
+        return '€' + formatted;
+    }
+
+    function unitBoxPrice() {
+        var text = $('.woosb-sync-price, .rd-bb-title-price, .rd-summary-price').first().text();
+        return parseMoney(text);
+    }
+
+    function snapshotHeader() {
+        var el = document.querySelector('.js-cart-header');
+        var data = el && window.Alpine && typeof window.Alpine.$data === 'function'
+            ? window.Alpine.$data(el)
+            : null;
+        return {
+            count: data ? (parseInt(data.cartCount, 10) || 0) : 0,
+            total: data ? (data.cartTotal || '') : ''
+        };
+    }
+
+    function applyHeaderTotals(count, total) {
+        if (typeof window.matrixRdApplyCartHeader === 'function') {
+            window.matrixRdApplyCartHeader({
+                cart_count: count,
+                cart_total: count > 0 ? (total || '') : ''
+            });
+        }
+    }
+
+    function applyBuilderCount(dom, count) {
+        if (!dom || !dom.cartBtn || !dom.cartBtn.length) { return; }
+        var $count = dom.cartBtn.find('.rd-bb-cart-btn__count');
+        count = parseInt(count, 10) || 0;
+        if (count > 0) {
+            $count.text(count).prop('hidden', false).attr('aria-hidden', 'false');
+        } else {
+            $count.prop('hidden', true).attr('aria-hidden', 'true');
+        }
+    }
+
+    function patchOpenSideCart(count, formattedTotal, lineQty) {
+        var title = document.querySelector('.rd-side-cart__title');
+        if (title) {
+            title.textContent = title.textContent.replace(
+                /\(\d+\s+items?\)/i,
+                '(' + count + (count === 1 ? ' item' : ' items') + ')'
+            );
+        }
+
+        var sub = document.querySelector('.rd-side-cart__subtotal-amount');
+        if (sub && formattedTotal) {
+            sub.textContent = formattedTotal;
+        }
+
+        if (lineQty != null) {
+            var qtyEl = document.querySelector('.rd-side-cart__qty');
+            if (qtyEl) {
+                qtyEl.textContent = String(lineQty) + ' ×';
+            }
+        }
+    }
+
+    // Update the visible totals as soon as the customer clicks, so they don't
+    // wait on the (bundle-heavy) admin-ajax round trip that rebuilds the cart.
+    function applyOptimisticTotals(dom, deltaQty, lineQty) {
+        if (!deltaQty) { return snapshotHeader(); }
+
+        var snap = snapshotHeader();
+        var unit = unitBoxPrice();
+        var nextCount = Math.max(0, snap.count + deltaQty);
+        var currentAmount = parseMoney(snap.total);
+        var nextTotal = '';
+
+        if (unit != null && currentAmount != null) {
+            nextTotal = formatMoney(Math.max(0, currentAmount + (unit * deltaQty)), snap.total);
+        } else if (unit != null && snap.count === 0) {
+            nextTotal = formatMoney(Math.max(0, unit * deltaQty), $('.woosb-sync-price, .rd-bb-title-price, .rd-summary-price').first().text());
+        }
+
+        applyHeaderTotals(nextCount, nextTotal || snap.total);
+        applyBuilderCount(dom, nextCount);
+        patchOpenSideCart(nextCount, nextTotal || snap.total, lineQty);
+        return snap;
+    }
+
+    function previewSideCart() {
+        if (!usesSideCart()) { return; }
+        if (typeof window.matrixRdShowSideCart === 'function') {
+            window.matrixRdShowSideCart();
+        }
+        if (typeof window.matrixRdSetSideCartLoading === 'function') {
+            window.matrixRdSetSideCartLoading(true);
+        }
+    }
+
+    function clearSideCartLoading() {
+        if (typeof window.matrixRdSetSideCartLoading === 'function') {
+            window.matrixRdSetSideCartLoading(false);
+        }
+    }
+
+    // After a cart change: apply the header total immediately, then (when the
+    // slide-out cart is active and the server already returned its HTML) open
+    // the panel without a second get_cart_info / fragment request.
+    function syncCartAfterChange(data, dom) {
+        if (data && data.cart_count !== undefined) {
+            applyHeaderTotals(data.cart_count, data.cart_total || '');
+            applyBuilderCount(dom, data.cart_count);
+        }
+
+        if (usesSideCart() && data && data.side_cart_html) {
+            openCartFeedback({
+                side_cart_html: data.side_cart_html,
+                cart_count: data.cart_count,
+                cart_total: data.cart_total || '',
+            });
+            clearSideCartLoading();
+            return;
+        }
+
+        refreshFragments();
+        openCartFeedback();
+        clearSideCartLoading();
     }
 
     function cartPost(action, data, done) {
@@ -1862,27 +2057,12 @@
     }
 
     function syncBuilderCartCount(dom) {
-        if (!dom.cartBtn || !dom.cartBtn.length) {
-            return;
-        }
-
-        var $count = dom.cartBtn.find('.rd-bb-cart-btn__count');
-
-        function applyCount(count) {
-            count = parseInt(count, 10) || 0;
-            if (count > 0) {
-                $count.text(count).prop('hidden', false).attr('aria-hidden', 'false');
-            } else {
-                $count.prop('hidden', true).attr('aria-hidden', 'true');
-            }
-        }
-
-        applyCount(dom.cartBtn.attr('data-initial-count') || dom.cartBtn.data('initial-count') || 0);
+        applyBuilderCount(dom, dom.cartBtn && (dom.cartBtn.attr('data-initial-count') || dom.cartBtn.data('initial-count') || 0));
 
         if (typeof window.fetchCartData === 'function') {
             window.fetchCartData().then(function (data) {
                 if (data && data.cart_count !== undefined) {
-                    applyCount(data.cart_count);
+                    applyBuilderCount(dom, data.cart_count);
                 }
             });
         }
@@ -1904,6 +2084,28 @@
             + '</div>';
     }
 
+    function newBoxLabel(builderOn) {
+        return builderOn
+            ? (i18n.buildNewBox || 'Build a new box')
+            : (i18n.addAnotherBox || 'Clear');
+    }
+
+    function syncNewBoxLabel(builderOn) {
+        var on = !!builderOn;
+        var label = newBoxLabel(on);
+        $('.rd-bb-new-box')
+            .text(label)
+            .attr('aria-label', label)
+            .toggleClass('rd-bb-new-box--clear', !on);
+    }
+
+    function newBoxButtonHtml() {
+        var builderOn = document.body.classList.contains('rd-bb-active');
+        return '<button type="button" class="rd-bb-new-box' + (builderOn ? '' : ' rd-bb-new-box--clear') + '">'
+            + esc(newBoxLabel(builderOn))
+            + '</button>';
+    }
+
     function buildCartUI(state, dom) {
         if (cart.ui) { return; }
         cart.ui = true;
@@ -1912,11 +2114,27 @@
         if ($btn.length) { $btn.after(stepperHtml('rd-bb-cart-stepper--main')); }
         if (dom.mobileAdd.length) { dom.mobileAdd.after(stepperHtml('rd-bb-cart-stepper--mobile')); }
 
+        // Sit under the stepper so, once +/− replaces Add to Cart, there is still
+        // a path to add another set box or start a different custom box.
+        var $row = $btn.closest('.rd-bb-cta-row, .rd-product-cta-row');
+        if ($row.length) {
+            $row.append(newBoxButtonHtml());
+        } else if ($btn.length) {
+            var $after = $btn.nextAll('.rd-bb-cart-stepper--main').first();
+            ($after.length ? $after : $btn).after(newBoxButtonHtml());
+        }
+        if (dom.mobilebar.length && !dom.mobilebar.find('.rd-bb-new-box').length) {
+            dom.mobilebar.append(newBoxButtonHtml());
+        }
+
         $(document).on('click', '.rd-bb-cart-step--plus', function () {
             cartSetQty(state, dom, cart.qty + 1);
         });
         $(document).on('click', '.rd-bb-cart-step--minus', function () {
             cartSetQty(state, dom, cart.qty - 1);
+        });
+        $(document).on('click', '.rd-bb-new-box', function () {
+            startNewBox(state, dom);
         });
     }
 
@@ -1937,6 +2155,7 @@
             $b.html(inCart ? esc(i18n.checkout || 'Checkout') : $b.data('rdBuyLabel'));
         });
         $buy.toggleClass('rd-bb-checkout-mode', inCart);
+        syncNewBoxLabel(document.body.classList.contains('rd-bb-active'));
     }
 
     // If the box is edited after being added, it's now a different, separate box.
@@ -2094,10 +2313,327 @@
         if ($alert.length) { $alert.stop(true, true).slideDown(); }
     }
 
+    // Parent box-count only: the WooCommerce form.cart > .quantity field, never
+    // WPC flavour steppers (.woosb-qty). After splitModeQuantityInputs() there
+    // are two of these — one per mode — and only the active one is named
+    // "quantity" so WPC / add-to-cart cannot read the idle mode's value.
+    function formQtyInput(dom) {
+        var $named = dom.form.children('.quantity').find('input[name="quantity"]').not('.woosb-qty').first();
+        if ($named.length) { return $named; }
+        return dom.form.children('.quantity').find('input.qty').not('.woosb-qty').first();
+    }
+
     function readFormQuantity(dom) {
-        var $qty = dom.form.find('input.qty').first();
-        var val = parseInt($qty.val(), 10);
+        var val = parseInt(formQtyInput(dom).val(), 10);
         return (!isNaN(val) && val > 0) ? val : 1;
+    }
+
+    function defaultFormQuantity(dom) {
+        var $qty = formQtyInput(dom);
+        var min = parseInt($qty.attr('min'), 10);
+        return (!isNaN(min) && min > 0) ? min : 1;
+    }
+
+    function writeFormQuantity(dom, qty) {
+        var $qty = formQtyInput(dom);
+        if (!$qty.length) { return; }
+        $qty.val(qty);
+        $qty.trigger('input').trigger('change');
+    }
+
+    function rebindQtyButtons($wrap) {
+        var $input = $wrap.find('input.qty').first();
+        if (!$input.length) { return; }
+        var min = parseInt($input.attr('min'), 10);
+        if (isNaN(min)) { min = 1; }
+        $wrap.find('.decrement-btn').off('click.rdbbqty').on('click.rdbbqty', function (e) {
+            e.preventDefault();
+            var value = parseInt($input.val(), 10) || 0;
+            $input.val(Math.max(min, value - 1)).trigger('change');
+        });
+        $wrap.find('.increment-btn').off('click.rdbbqty').on('click.rdbbqty', function (e) {
+            e.preventDefault();
+            var value = parseInt($input.val(), 10) || 0;
+            var max = parseInt($input.attr('max'), 10);
+            var next = value + 1;
+            if (!isNaN(max) && max > 0) {
+                next = Math.min(max, next);
+            }
+            $input.val(next).trigger('change');
+        });
+    }
+
+    // Give set-box and builder each their own box-count stepper. Sharing one
+    // input meant a set-box qty of 3 leaked into "Build Your Own Box", so the
+    // customer could not add a single custom box.
+    function splitModeQuantityInputs(dom) {
+        if (!dom.form || !dom.form.length) { return; }
+        if (dom.form.find('.rd-bb-qty-wrap--builder').length) { return; }
+
+        var $wrap = dom.form.children('div.quantity').not('.rd-bb-qty-wrap--builder').first();
+        if (!$wrap.length) {
+            var $qty = formQtyInput(dom);
+            if (!$qty.length) {
+                $qty = dom.form.find('input[name="quantity"]').not('.woosb-qty').first();
+            }
+            $wrap = $qty.closest('div.quantity');
+        }
+        if (!$wrap.length || $wrap.hasClass('rd-bb-qty-wrap--setbox')) { return; }
+
+        // Mode-visibility CSS keys off form.cart > .rd-bb-qty-wrap--*, so the
+        // wrap must be a direct child (it can start nested in a CTA row).
+        if (!$wrap.parent().is(dom.form)) {
+            var $cta = dom.form.children('.rd-product-cta-row, .rd-bb-cta-row').first();
+            if ($cta.length) { $cta.before($wrap); }
+            else { dom.form.append($wrap); }
+        }
+
+        $wrap.addClass('rd-bb-qty-wrap rd-bb-qty-wrap--setbox');
+        var $setInput = $wrap.find('input.qty, input[name="quantity"]').first();
+        $setInput.addClass('rd-bb-qty-input--setbox');
+
+        var $builderWrap = $wrap.clone(false);
+        $builderWrap
+            .removeClass('rd-bb-qty-wrap--setbox')
+            .addClass('rd-bb-qty-wrap rd-bb-qty-wrap--builder');
+        var $builderInput = $builderWrap.find('input.qty, input[name="quantity"]').first();
+        var fallback = parseInt($setInput.attr('min'), 10);
+        if (isNaN(fallback) || fallback < 1) { fallback = 1; }
+        $builderInput
+            .removeClass('rd-bb-qty-input--setbox')
+            .addClass('rd-bb-qty-input--builder')
+            .attr({
+                name: 'rd_bb_idle_qty',
+                id: 'rd-bb-builder-quantity',
+                value: String(fallback)
+            })
+            .val(fallback);
+        $builderWrap.find('label').attr('for', 'rd-bb-builder-quantity');
+        $wrap.after($builderWrap);
+
+        if ($builderWrap.find('.increment-btn, .decrement-btn').length) {
+            rebindQtyButtons($builderWrap);
+            $builderInput.addClass('hasQtyButtons');
+        } else {
+            $builderInput.removeClass('hasQtyButtons');
+        }
+    }
+
+    // Only the visible mode's stepper is named "quantity" (submitted / read by
+    // WPC). The idle clone keeps its own value under a dummy name.
+    function applyModeQuantityUi(dom, builderOn) {
+        var $set = dom.form.children('.rd-bb-qty-wrap--setbox').find('input.qty').first();
+        var $bld = dom.form.children('.rd-bb-qty-wrap--builder').find('input.qty').first();
+        if ($set.length && $bld.length) {
+            if (builderOn) {
+                $set.attr('name', 'rd_bb_idle_qty');
+                $bld.attr('name', 'quantity');
+            } else {
+                $bld.attr('name', 'rd_bb_idle_qty');
+                $set.attr('name', 'quantity');
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // Fallback when the form has a single shared qty input (split failed).
+    function syncModeQuantity(state, dom, builderOn) {
+        if (applyModeQuantityUi(dom, builderOn)) { return; }
+        var current = readFormQuantity(dom);
+        var fallback = defaultFormQuantity(dom);
+        if (builderOn) {
+            state.setBoxQty = current;
+            writeFormQuantity(dom, state.builderQty != null ? state.builderQty : fallback);
+        } else {
+            state.builderQty = current;
+            writeFormQuantity(dom, state.setBoxQty != null ? state.setBoxQty : fallback);
+        }
+    }
+
+    // The in-cart −/+ stepper is local UI for "the box I just added in this
+    // mode". The Woo line stays in the basket; we only drop/restore our handle
+    // so builder mode can add a separate custom box.
+    function snapshotCart() {
+        return {
+            key: cart.key || null,
+            qty: parseInt(cart.qty, 10) || 0,
+            addedIds: cart.addedIds || null
+        };
+    }
+
+    function applyCartSnapshot(snap) {
+        if (snap && snap.key && snap.qty > 0) {
+            cart.key = snap.key;
+            cart.qty = snap.qty;
+            cart.addedIds = snap.addedIds;
+        } else {
+            cart.key = null;
+            cart.qty = 0;
+            cart.addedIds = null;
+        }
+    }
+
+    function syncModeCart(state, dom, builderOn) {
+        if (builderOn) {
+            state.setBoxCart = snapshotCart();
+            applyCartSnapshot(state.builderCart);
+        } else {
+            state.builderCart = snapshotCart();
+            applyCartSnapshot(state.setBoxCart);
+        }
+        renderCart(dom);
+    }
+
+    function freshModeQty(dom, builderOn) {
+        var wrap = builderOn ? '.rd-bb-qty-wrap--builder' : '.rd-bb-qty-wrap--setbox';
+        var $input = dom.form.children(wrap).find('input.qty').first();
+        var min = parseInt($input.attr('min'), 10);
+        if (!isNaN(min) && min > 0) { return min; }
+        return defaultFormQuantity(dom);
+    }
+
+    // +/− only changes how many of *this* box are in the basket. These actions
+    // detach from that line (it stays in the cart) and return Add to Cart:
+    // set-box "Clear" stays on the classic view and resets the product option
+    // so a different occasion/team/logo can be chosen; builder "Build a new
+    // box" stays in the builder so a different mix can be added.
+    function startNewBox(state, dom) {
+        var builderOn = !!state.active;
+        var qty = freshModeQty(dom, builderOn);
+
+        cart.epoch += 1;
+        cart.key = null;
+        cart.qty = 0;
+        cart.addedIds = null;
+        cart.busy = false;
+        setCartBusy(dom, false);
+
+        if (builderOn) {
+            state.builderCart = null;
+            state.builderQty = qty;
+        } else {
+            state.setBoxCart = null;
+            state.setBoxQty = qty;
+        }
+
+        writeFormQuantity(dom, qty);
+        renderCart(dom);
+
+        // After the CTA is restored: drop the occasion/team/logo so a new one
+        // can be chosen. Do this after renderCart so a widget error cannot leave
+        // the customer stuck on the stepper.
+        var emptyAddons = emptyAddonSnapshot();
+        if (builderOn) {
+            state.builderAddons = emptyAddons;
+        } else {
+            state.setBoxAddons = emptyAddons;
+        }
+        applyAddonSnapshot(emptyAddons);
+    }
+
+    // Team / occasion dropdowns and logo uploads travel with the box, so each
+    // mode keeps its own selection. The gift note (special_requests) stays
+    // shared — it is an order message, not part of the box config.
+    function addonOptionFields() {
+        var root = addonsRoot();
+        if (!root) { return []; }
+        return [].slice.call(root.querySelectorAll('select[name], input[type="file"][name]'));
+    }
+
+    function filePreviewEl(input) {
+        var next = input.nextElementSibling;
+        return (next && next.classList && next.classList.contains('dbb-file-preview')) ? next : null;
+    }
+
+    function snapshotAddons() {
+        var values = {};
+        var files = {};
+        addonOptionFields().forEach(function (el) {
+            var key = el.name || el.id;
+            if (!key) { return; }
+            if (el.type === 'file') {
+                files[key] = { input: el, preview: filePreviewEl(el) };
+            } else {
+                values[key] = el.value;
+            }
+        });
+        return { values: values, files: files };
+    }
+
+    function emptyAddonSnapshot() {
+        var values = {};
+        var files = {};
+        addonOptionFields().forEach(function (el) {
+            var key = el.name || el.id;
+            if (!key) { return; }
+            if (el.type === 'file') {
+                files[key] = null;
+            } else {
+                values[key] = '';
+            }
+        });
+        return { values: values, files: files };
+    }
+
+    function replaceFileInput(el, stored) {
+        var parent = el.parentNode;
+        if (!parent) { return; }
+        var oldPreview = filePreviewEl(el);
+        if (stored && stored.input) {
+            if (stored.input !== el) {
+                parent.replaceChild(stored.input, el);
+            }
+            if (oldPreview && oldPreview !== stored.preview && oldPreview.parentNode) {
+                oldPreview.parentNode.removeChild(oldPreview);
+            }
+            if (stored.preview && stored.input.nextElementSibling !== stored.preview) {
+                stored.input.insertAdjacentElement('afterend', stored.preview);
+            }
+            return;
+        }
+        var clone = el.cloneNode(true);
+        clone.value = '';
+        if (clone.dataset) { delete clone.dataset.dbbFileReady; }
+        parent.replaceChild(clone, el);
+        if (oldPreview && oldPreview.parentNode) {
+            oldPreview.parentNode.removeChild(oldPreview);
+        }
+        if (typeof window.dbbEnhanceOptionLogos === 'function') {
+            window.dbbEnhanceOptionLogos(parent);
+        }
+    }
+
+    function applyAddonSnapshot(snap) {
+        var data = snap || emptyAddonSnapshot();
+        var values = data.values || {};
+        var files = data.files || {};
+        addonOptionFields().forEach(function (el) {
+            var key = el.name || el.id;
+            if (!key) { return; }
+            if (el.type === 'file') {
+                replaceFileInput(el, files[key]);
+                return;
+            }
+            var next = Object.prototype.hasOwnProperty.call(values, key) ? String(values[key] || '') : '';
+            if (el.value !== next) {
+                el.value = next;
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            clearAddonError(el);
+        });
+    }
+
+    function syncModeAddons(state, builderOn) {
+        if (!addonsRoot() || !addonOptionFields().length) { return; }
+        if (builderOn) {
+            state.setBoxAddons = snapshotAddons();
+            applyAddonSnapshot(state.builderAddons);
+        } else {
+            state.builderAddons = snapshotAddons();
+            applyAddonSnapshot(state.setBoxAddons);
+        }
     }
 
     function cartAdd(state, dom, opts) {
@@ -2130,6 +2666,13 @@
                 : dom.form.find('.single_add_to_cart_button').get(0));
 
         cart.busy = true; setCartBusy(dom, true); setProcessing(dom, true, active);
+        var addEpoch = cart.epoch;
+
+        var addQty = readFormQuantity(dom);
+        var headerSnap = applyOptimisticTotals(dom, addQty, (cart.qty || 0) + addQty);
+        if (!opts.thenCheckout) {
+            previewSideCart();
+        }
 
         $.ajax({
             url: aj.url,
@@ -2139,6 +2682,7 @@
             contentType: false,
             dataType: 'json'
         }).done(function (res) {
+            if (addEpoch !== cart.epoch) { return; }
             var data = res && res.success ? res.data : null;
             if (data && data.cart_item_key) {
                 // Count this as a completed box "use" (covers Buy Now too).
@@ -2152,15 +2696,21 @@
                 cart.key = data.cart_item_key;
                 cart.qty = data.quantity || 1;
                 cart.addedIds = ids;
-                refreshFragments();
-                openCartFeedback();
+                syncCartAfterChange(data, dom);
                 toast(dom, i18n.added || 'Added to your basket');
             } else {
+                applyHeaderTotals(headerSnap.count, headerSnap.total);
+                applyBuilderCount(dom, headerSnap.count);
+                clearSideCartLoading();
                 var msg = (res && res.data && res.data.message) || i18n.addError || 'Could not add to basket.';
                 toast(dom, msg);
             }
             cart.busy = false; setCartBusy(dom, false); setProcessing(dom, false, active); renderCart(dom);
         }).fail(function () {
+            if (addEpoch !== cart.epoch) { return; }
+            applyHeaderTotals(headerSnap.count, headerSnap.total);
+            applyBuilderCount(dom, headerSnap.count);
+            clearSideCartLoading();
             toast(dom, i18n.addError || 'Could not add to basket.');
             cart.busy = false; setCartBusy(dom, false); setProcessing(dom, false, active); renderCart(dom);
         });
@@ -2169,22 +2719,33 @@
     function cartSetQty(state, dom, qty) {
         if (cart.busy || !cart.key) { return; }
         qty = Math.max(0, qty);
+        var prevQty = cart.qty;
+        var delta = qty - prevQty;
+
+        cart.qty = qty;
         cart.busy = true; setCartBusy(dom, true);
+        var qtyEpoch = cart.epoch;
+        renderCart(dom);
+        var headerSnap = applyOptimisticTotals(dom, delta, qty);
+        previewSideCart();
 
         cartPost(cartAjax().qty, { cart_item_key: cart.key, quantity: qty }, function (data) {
+            if (qtyEpoch !== cart.epoch) { return; }
             if (data) {
                 if (data.removed || data.quantity <= 0) {
                     cart.key = null; cart.qty = 0; cart.addedIds = null;
-                    refreshFragments();
                 } else {
                     cart.qty = data.quantity;
-                    refreshFragments();
-                    // Mirror the initial add: surface the side-cart slide-out (or
-                    // notice popup) so the customer always has a path to checkout
-                    // after changing the quantity from the stepper.
-                    openCartFeedback();
                 }
+                // Mirror the initial add: surface the side-cart slide-out (or
+                // notice popup) so the customer always has a path to checkout
+                // after changing the quantity from the stepper.
+                syncCartAfterChange(data, dom);
             } else {
+                cart.qty = prevQty;
+                applyHeaderTotals(headerSnap.count, headerSnap.total);
+                applyBuilderCount(dom, headerSnap.count);
+                clearSideCartLoading();
                 toast(dom, i18n.cartError || 'Could not update your basket.');
             }
             cart.busy = false; setCartBusy(dom, false); renderCart(dom);
@@ -2399,6 +2960,11 @@
         dom.sheetClose.on('click', function () { closeSheet(state, dom); });
         initSheetResize(state, dom);
         dom.backdrop.on('click', function () { closeSheet(state, dom); });
+        window.addEventListener('popstate', function () {
+            if ($('body').hasClass('rd-bb-sheet-open')) {
+                closeSheet(state, dom, { fromPopstate: true });
+            }
+        });
         $(document).on('keydown', function (e) {
             if ((e.key === 'Escape' || e.keyCode === 27) && $('body').hasClass('rd-bb-sheet-open')) {
                 closeSheet(state, dom);
@@ -2600,6 +3166,11 @@
             closeSheet(state, dom);
             restoreDefaults(state, dom);
         }
+
+        syncModeQuantity(state, dom, on);
+        syncModeCart(state, dom, on);
+        syncModeAddons(state, on);
+        syncNewBoxLabel(on);
 
         render(state, dom);
 

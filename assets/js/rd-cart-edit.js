@@ -17,6 +17,45 @@
         return el && el.closest ? el.closest(selector) : null;
     }
 
+    function updateBoxContentsScroll(scrollEl) {
+        if (!scrollEl) {
+            return;
+        }
+
+        var wrap = closest(scrollEl, '.rd-bb-cart-contents-wrap');
+        var hint = wrap ? wrap.querySelector('.rd-bb-cart-scroll-hint') : null;
+        var scrollable = scrollEl.scrollHeight > scrollEl.clientHeight + 1;
+        var atEnd = scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 1;
+
+        scrollEl.classList.toggle('is-scrollable', scrollable);
+        scrollEl.classList.toggle('is-at-end', atEnd);
+
+        if (hint) {
+            hint.hidden = !scrollable;
+            hint.setAttribute('aria-hidden', scrollable ? 'false' : 'true');
+
+            if (scrollable && hint.id) {
+                scrollEl.setAttribute('aria-describedby', hint.id);
+            } else {
+                scrollEl.removeAttribute('aria-describedby');
+            }
+        }
+    }
+
+    function refreshAllBoxContentsScroll() {
+        document.querySelectorAll('.rd-bb-cart-contents-scroll').forEach(updateBoxContentsScroll);
+    }
+
+    window.rdRefreshBoxContentsScroll = refreshAllBoxContentsScroll;
+
+    document.addEventListener('scroll', function (event) {
+        if (event.target && event.target.classList && event.target.classList.contains('rd-bb-cart-contents-scroll')) {
+            updateBoxContentsScroll(event.target);
+        }
+    }, true);
+
+    window.addEventListener('resize', refreshAllBoxContentsScroll);
+
     document.addEventListener('click', function (event) {
         var toggle = closest(event.target, '.rd-bb-cart-acc-toggle');
         if (toggle) {
@@ -32,6 +71,13 @@
             }
             toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
             acc.classList.toggle('is-open', open);
+
+            if (open) {
+                window.requestAnimationFrame(function () {
+                    refreshAllBoxContentsScroll();
+                });
+            }
+
             return;
         }
 
@@ -152,5 +198,11 @@
                     msg.textContent = (conf.i18n && conf.i18n.error) || 'Error';
                 }
             });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', refreshAllBoxContentsScroll);
+    } else {
+        refreshAllBoxContentsScroll();
     }
 })();

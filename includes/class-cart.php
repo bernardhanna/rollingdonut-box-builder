@@ -115,13 +115,33 @@ class RD_Box_Builder_Cart {
     private static function payload(string $key, int $qty, bool $removed = false): array {
         WC()->cart->calculate_totals();
 
-        return array(
+        $data = array(
             'cart_item_key' => $key,
             'quantity'      => $qty,
             'removed'       => $removed,
             'cart_count'    => WC()->cart->get_cart_contents_count(),
             'cart_hash'     => WC()->cart->get_cart_hash(),
         );
+
+        // Always return the header total so the product page can update it as
+        // soon as this request lands — not only when the (heavier) side-cart
+        // HTML is also being rendered.
+        if (function_exists('matrix_rd_get_cart_total_plain_excluding_shipping')) {
+            $data['cart_total'] = matrix_rd_get_cart_total_plain_excluding_shipping();
+        }
+
+        // When the theme slide-out cart is active, include its HTML in this
+        // response so the product page can open the panel without a second
+        // admin-ajax round trip (fetch_side_cart).
+        if (
+            function_exists('matrix_rd_uses_side_cart')
+            && matrix_rd_uses_side_cart()
+            && function_exists('matrix_rd_render_side_cart_contents')
+        ) {
+            $data['side_cart_html'] = matrix_rd_render_side_cart_contents();
+        }
+
+        return $data;
     }
 
     /** Pull the first queued WooCommerce error notice (e.g. WPC validation). */
