@@ -20,6 +20,8 @@ class RD_Box_Builder_Flag {
      * we add a note rather than hiding it (WPC swaps panels dynamically by type).
      */
     public static function render_field(): void {
+        echo '<input type="hidden" name="_rd_enable_box_builder_present" value="1" />';
+
         woocommerce_wp_checkbox(array(
             'id'          => '_rd_enable_box_builder',
             'label'       => __('Enable Box Builder', 'rd-box-builder'),
@@ -28,7 +30,18 @@ class RD_Box_Builder_Flag {
         ));
     }
 
+    /**
+     * Persist the checkbox only when the product-data panel actually posted it.
+     *
+     * Unchecked checkboxes are omitted from POST, which is how we detect "off".
+     * Other admin saves (quick/bulk edit, imports, programmatic product saves)
+     * also omit the field — those must not wipe an existing flag.
+     */
     public static function save_field(int $post_id): void {
+        if (! isset($_POST['_rd_enable_box_builder_present'])) {
+            return;
+        }
+
         $value = isset($_POST['_rd_enable_box_builder']) ? 'yes' : '';
         update_post_meta($post_id, '_rd_enable_box_builder', $value);
     }
