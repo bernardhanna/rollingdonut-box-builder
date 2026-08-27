@@ -28,6 +28,7 @@ define('RD_BB_URL', plugin_dir_url(__FILE__));
 
 require_once RD_BB_DIR . 'includes/helpers.php';
 require_once RD_BB_DIR . 'includes/class-flag.php';
+require_once RD_BB_DIR . 'includes/class-bundle-guard.php';
 require_once RD_BB_DIR . 'includes/class-quick-fill.php';
 require_once RD_BB_DIR . 'includes/class-render.php';
 require_once RD_BB_DIR . 'includes/class-assets.php';
@@ -59,6 +60,7 @@ function rd_box_builder_init(): void {
     }
 
     RD_Box_Builder_Flag::init();
+    RD_Box_Builder_Bundle_Guard::init();
     RD_Box_Builder_Quick_Fill::init();
     RD_Box_Builder_Render::init();
     RD_Box_Builder_Assets::init();

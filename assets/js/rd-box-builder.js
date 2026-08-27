@@ -500,7 +500,13 @@
         $products.find('.woosb-product').each(function () {
             var $node = $(this);
             var $input = $node.find('.woosb-qty').first();
-            var editable = $input.length > 0 && !$input.is(':disabled');
+            // WPC disables qty when a flavour is temporarily unpurchasable. The
+            // picker used to treat that as "not a flavour", which emptied the
+            // grid while My Box still showed the pre-filled mix from data-qty.
+            if ($input.length && $input.is(':disabled')) {
+                $input.prop('disabled', false);
+            }
+            var editable = $input.length > 0;
             var order = parseInt($node.attr('data-order'), 10);
             var $img = $node.find('.woosb-thumb img').first();
 
@@ -1331,11 +1337,17 @@
         thumb.style.top = top + 'px';
     }
 
+    function itemCategorySlugs(item) {
+        if (Array.isArray(item.cats)) { return item.cats; }
+        if (item.cats) { return [item.cats]; }
+        return [];
+    }
+
     function getVisiblePickerItems(state) {
         return state.items.filter(function (item) {
             if (!item.editable) { return false; }
             if (state.sort === 'selected' && !(item.qty > 0)) { return false; }
-            if (state.filter && item.cats.indexOf(state.filter) === -1) { return false; }
+            if (state.filter && itemCategorySlugs(item).indexOf(state.filter) === -1) { return false; }
             if (state.search && String(item.name).toLowerCase().indexOf(state.search) === -1) { return false; }
             return true;
         }).sort(function (a, b) { return compareItems(a, b, state.sort); });
@@ -1553,6 +1565,10 @@
             + esc(i18n.all || 'All') + '</button>';
 
         categories.forEach(function (cat) {
+            var has = state.items.some(function (item) {
+                return item.editable && itemCategorySlugs(item).indexOf(cat.slug) !== -1;
+            });
+            if (!has) { return; }
             html += '<button type="button" class="rd-bb-chip" data-cat="' + esc(cat.slug) + '">'
                 + esc(cat.name) + '</button>';
         });
@@ -1769,6 +1785,18 @@
         dom.picker.toggleClass('rd-bb-picker--full', isFull);
 
         var visible = getVisiblePickerItems(state);
+        // A stale category chip (e.g. "New Flavours" after those SKUs were
+        // retired) would otherwise blank the whole picker. Fall back to All.
+        if (!visible.length && state.filter && !state.search && state.sort !== 'selected') {
+            state.filter = '';
+            if (dom.filter && dom.filter.length) {
+                dom.filter.find('.rd-bb-chip').each(function () {
+                    var $chip = $(this);
+                    $chip.toggleClass('is-active', ($chip.attr('data-cat') || '') === '');
+                });
+            }
+            visible = getVisiblePickerItems(state);
+        }
         var limit = Math.min(state.pickerLimit || PICKER_BATCH, visible.length);
         var batch = visible.slice(0, limit);
         var hasMore = visible.length > limit;
@@ -1821,8 +1849,10 @@
                 emptyMsg = i18n.noMatches || 'No flavours match your search.';
             } else if (state.sort === 'selected') {
                 emptyMsg = i18n.noneSelected || 'No flavours selected yet. Add a flavour to see it here.';
-            } else {
+            } else if (state.filter) {
                 emptyMsg = i18n.noneInCategory || 'No donuts in this category.';
+            } else {
+                emptyMsg = i18n.noneAvailable || 'No flavours are available to add right now.';
             }
             html = '<p class="rd-bb-empty">' + esc(emptyMsg) + '</p>';
         } else if (isFull && state.touched) {

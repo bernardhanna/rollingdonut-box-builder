@@ -192,7 +192,7 @@ function rd_box_builder_build_woosb_ids(array $variation_ids, $existing, int $wh
             $item['qty']      = isset($item['qty']) ? (string) $item['qty'] : '0';
             $item['min']      = isset($item['min']) ? (string) $item['min'] : '0';
             $item['max']      = '' !== $max ? $max : (isset($item['max']) ? (string) $item['max'] : '');
-            $item['optional'] = 'on';
+            $item['optional'] = rd_box_builder_optional_flag();
             $woosb[$key]      = $item;
             continue;
         }
@@ -204,11 +204,209 @@ function rd_box_builder_build_woosb_ids(array $variation_ids, $existing, int $wh
             'qty'      => '0',
             'min'      => '0',
             'max'      => $max,
-            'optional' => 'on',
+            'optional' => rd_box_builder_optional_flag(),
         );
     }
 
     return $woosb;
+}
+
+/**
+ * Value WPC stores for "Custom quantity" on a bundled row.
+ *
+ * The admin checkbox is `checked( $optional, 1 )`. Using `'on'` looks unchecked,
+ * so the next product Update strips optional and the storefront picker goes empty
+ * (no `.woosb-qty` inputs) while My Box still fills from `data-qty`.
+ */
+function rd_box_builder_optional_flag(): string {
+    return '1';
+}
+
+/**
+ * Mark every flavour row optional so WPC renders editable quantity inputs.
+ *
+ * Heading/text rows (no product id) are left untouched.
+ *
+ * @param mixed $items
+ * @return array<string, mixed>
+ */
+function rd_box_builder_force_optional_on_items($items): array {
+    if (! is_array($items)) {
+        return array();
+    }
+
+    $out = array();
+    foreach ($items as $key => $item) {
+        if (is_array($item) && ! empty($item['id'])) {
+            $item['optional'] = rd_box_builder_optional_flag();
+        }
+        $out[$key] = $item;
+    }
+
+    return $out;
+}
+
+/**
+ * Number of leaf values in a nested array — a close stand-in for how many PHP
+ * input vars that payload consumed.
+ */
+function rd_box_builder_count_leaf_vars($data): int {
+    if (! is_array($data)) {
+        return 0;
+    }
+
+    $n = 0;
+    foreach ($data as $value) {
+        if (is_array($value)) {
+            $n += rd_box_builder_count_leaf_vars($value);
+        } else {
+            $n++;
+        }
+    }
+
+    return $n;
+}
+
+/**
+ * Whether WPC's save of `woosb_ids` should be thrown away in favour of the
+ * bundle that was already on the product.
+ *
+ * WPC deletes `woosb_ids` when the field is missing from POST, and will store a
+ * truncated list when PHP hits `max_input_vars`. Both look like "the box of 12
+ * is now empty" after a manager tries to retire a few flavours.
+ *
+ * @param mixed      $previous          Existing woosb_ids meta.
+ * @param array|null $posted_woosb_ids  Posted list, or null when the field was absent.
+ */
+function rd_box_builder_posted_bundle_was_clobbered($previous, $posted_woosb_ids, int $post_leaf_count, int $max_input_vars): bool {
+    if (! is_array($previous) || $previous === array()) {
+        return false;
+    }
+
+    if ($posted_woosb_ids === null) {
+        return true;
+    }
+
+    if (! is_array($posted_woosb_ids)) {
+        return true;
+    }
+
+    if ($max_input_vars > 0 && $post_leaf_count >= $max_input_vars && count($posted_woosb_ids) < count($previous)) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Whether a bundled flavour should appear in a box builder.
+ *
+ * Variations stay `publish` when their parent is drafted, so we have to look at
+ * the parent status (and purchasability) rather than the variation alone.
+ *
+ * @param mixed $product
+ */
+function rd_box_builder_flavour_is_available($product): bool {
+    if (! $product instanceof WC_Product) {
+        return false;
+    }
+
+    if ($product->get_status() !== 'publish') {
+        return false;
+    }
+
+    if ($product->is_type('variation')) {
+        $parent_id = $product->get_parent_id();
+        $parent    = $parent_id ? wc_get_product($parent_id) : null;
+        if (! $parent instanceof WC_Product || $parent->get_status() !== 'publish') {
+            return false;
+        }
+    }
+
+    return $product->is_purchasable();
+}
+
+/**
+ * Remove retired/unavailable flavours from a `woosb_ids` array.
+ *
+ * Default quantities on the dropped rows are moved onto the remaining flavour
+ * that already has the highest qty, so a set mix of 12 stays a mix of 12.
+ *
+ * @param array<string, array<string, mixed>> $woosb_ids
+ * @param int[]                               $drop_ids
+ * @return array<string, array<string, mixed>>
+ */
+function rd_box_builder_prune_woosb_ids(array $woosb_ids, array $drop_ids): array {
+    $drop = array_flip(array_map('intval', $drop_ids));
+    $kept = array();
+    $moved_qty = 0;
+
+    foreach ($woosb_ids as $key => $item) {
+        if (! is_array($item)) {
+            continue;
+        }
+
+        if (! isset($item['id'])) {
+            $kept[$key] = $item;
+            continue;
+        }
+
+        $id = (int) $item['id'];
+        if ($id > 0 && isset($drop[$id])) {
+            $moved_qty += (int) ($item['qty'] ?? 0);
+            continue;
+        }
+
+        $kept[$key] = $item;
+    }
+
+    if ($moved_qty <= 0 || $kept === array()) {
+        return $kept;
+    }
+
+    $max_key = null;
+    $max_qty = -1;
+    foreach ($kept as $key => $item) {
+        $qty = (int) ($item['qty'] ?? 0);
+        if ($qty > $max_qty) {
+            $max_qty = $qty;
+            $max_key = $key;
+        }
+    }
+
+    if ($max_key !== null) {
+        $kept[$max_key]['qty'] = (string) ($max_qty + $moved_qty);
+    }
+
+    return $kept;
+}
+
+/**
+ * Variation/product ids in a bundle that should no longer be offered.
+ *
+ * @param array<string, array<string, mixed>>|mixed $woosb_ids
+ * @return int[]
+ */
+function rd_box_builder_unavailable_ids_in_bundle($woosb_ids): array {
+    if (! is_array($woosb_ids)) {
+        return array();
+    }
+
+    $drop = array();
+    foreach ($woosb_ids as $item) {
+        if (! is_array($item) || ! isset($item['id'])) {
+            continue;
+        }
+        $id = (int) $item['id'];
+        if ($id <= 0) {
+            continue;
+        }
+        if (! rd_box_builder_flavour_is_available(wc_get_product($id))) {
+            $drop[] = $id;
+        }
+    }
+
+    return array_values(array_unique($drop));
 }
 
 /**
@@ -257,7 +455,7 @@ function rd_box_builder_category_data(WC_Product $product): array {
         }
 
         $child = wc_get_product($id);
-        if (! $child instanceof WC_Product) {
+        if (! $child instanceof WC_Product || ! rd_box_builder_flavour_is_available($child)) {
             continue;
         }
 

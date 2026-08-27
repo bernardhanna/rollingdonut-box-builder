@@ -86,6 +86,65 @@ class RD_Box_Builder_CLI {
     }
 
     /**
+     * Drop unpublished / unpurchasable flavours from every box-builder bundle.
+     *
+     * Quantities on retired flavours are moved onto the remaining mix so a set
+     * box of 12 stays a set box of 12.
+     *
+     * ## OPTIONS
+     *
+     * [--dry-run]
+     * : Report what would be removed; do not write.
+     *
+     * ## EXAMPLES
+     *
+     *     wp rd-box-builder prune_unavailable --dry-run
+     *     wp rd-box-builder prune_unavailable
+     *
+     * @when after_wp_load
+     * @subcommand prune_unavailable
+     */
+    public function prune_unavailable($args, $assoc_args): void {
+        $dry_run = isset($assoc_args['dry-run']);
+        $boxes   = RD_Box_Builder_Bundle_Guard::enabled_box_ids();
+        $changed = 0;
+
+        foreach ($boxes as $box_id) {
+            $drop = RD_Box_Builder_Bundle_Guard::prune_box_report($box_id);
+            if ($drop === array()) {
+                continue;
+            }
+
+            $changed++;
+            $names = array();
+            foreach ($drop as $vid) {
+                $product = wc_get_product($vid);
+                $names[] = $product instanceof WC_Product ? $product->get_name() : ('#' . $vid);
+            }
+
+            $box = wc_get_product($box_id);
+            WP_CLI::log(sprintf(
+                '#%d %s — dropping %s',
+                $box_id,
+                $box instanceof WC_Product ? $box->get_name() : '(unknown)',
+                implode(', ', $names)
+            ));
+
+            if (! $dry_run) {
+                RD_Box_Builder_Bundle_Guard::prune_box($box_id);
+            }
+        }
+
+        WP_CLI::success(sprintf(
+            '%s %d box-builder product(s); %d had retired flavours%s.',
+            $dry_run ? 'Scanned' : 'Pruned',
+            count($boxes),
+            $changed,
+            $dry_run ? ' (dry run, nothing changed)' : ''
+        ));
+    }
+
+    /**
      * Show box-builder usage counts (opens + adds) per enabled product.
      *
      * "Opens" is how many times shoppers clicked "Build Your Own Box"; "Adds" is

@@ -100,6 +100,7 @@ class RD_Box_Builder_Assets {
                 'close'         => __('Close Box Builder Mode', 'rd-box-builder'),
                 'closeShort'    => __('Close builder', 'rd-box-builder'),
                 'noneInCategory' => __('No donuts in this category.', 'rd-box-builder'),
+                'noneAvailable'  => __('No flavours are available to add right now.', 'rd-box-builder'),
                 'noMatches'     => __('No flavours match your search.', 'rd-box-builder'),
                 'noneSelected'  => __('No flavours selected yet. Add a flavour to see it here.', 'rd-box-builder'),
                 'listAdd'       => __('Add Flavour to Box', 'rd-box-builder'),

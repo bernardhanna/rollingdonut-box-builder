@@ -73,7 +73,7 @@ class RD_Box_Builder_Quick_Fill {
         woocommerce_wp_select(array(
             'id'          => '_rd_bb_group_selection',
             'label'       => __('Auto-fill donut types', 'rd-box-builder'),
-            'description' => __('Fill this box automatically from the live catalogue. Re-saving refreshes the list; newly published matching donuts are added to every box automatically. Choose "Selected Flavours Only" to manage items by hand in the Bundled Products tab.', 'rd-box-builder'),
+            'description' => __('Fill this box automatically from the live catalogue. Re-saving refreshes the list; newly published matching donuts are added to every box automatically. To retire a flavour, set that product to Draft — it drops out of every box builder on its own. Do not delete rows from Bundled Products: a long flavour list can empty the box on save. Choose "Selected Flavours Only" to manage items by hand.', 'rd-box-builder'),
             'desc_tip'    => true,
             'value'       => $group,
             'options'     => array(
@@ -115,7 +115,7 @@ class RD_Box_Builder_Quick_Fill {
             echo '<option value="' . esc_attr((string) $vid) . '" ' . (in_array((int) $vid, $disabled, true) ? 'selected' : '') . '>' . esc_html($vname) . '</option>';
         }
         echo '</select>';
-        echo '<span class="description">' . esc_html__('Excluded from the auto-fill modes above. Ignored in "Selected Flavours Only".', 'rd-box-builder') . '</span></p>';
+        echo '<span class="description">' . esc_html__('Excluded from the auto-fill modes above. Ignored in "Selected Flavours Only". Prefer drafting the flavour product instead — that removes it from every box without touching Bundled Products.', 'rd-box-builder') . '</span></p>';
 
         echo '</div>'; // .rd-bb-quickfill
         ?>
@@ -234,6 +234,9 @@ class RD_Box_Builder_Quick_Fill {
         self::$syncing = true;
         foreach (self::managed_box_ids() as $box_id) {
             self::rebuild_box($box_id);
+        }
+        foreach (RD_Box_Builder_Bundle_Guard::enabled_box_ids() as $box_id) {
+            RD_Box_Builder_Bundle_Guard::prune_box($box_id);
         }
         self::$syncing = false;
     }
